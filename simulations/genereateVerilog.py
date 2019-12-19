@@ -3,7 +3,8 @@ from src.utiliters.util import Utiliters
 import math
 import csv
 import os
-from src.simulations.simulation import Verilog
+from src.simulations.verilogFullSimulationWithPI import Verilog as VerilogWithPI
+from src.simulations.verilogFullSimulationWoutPI import Verilog as VerilogWoutPI
 
 # https://www.tutorialspoint.com/python/index.htm
 
@@ -17,7 +18,7 @@ def load_cfg(path):
 if __name__ == '__main__':
     u = Utiliters()
     # path to work with
-    path = './'
+    path = '../results/'
     #path = os.getcwd().replace('\\', '/') + '/../../../Verilog/Implementation/'
     #Algorithm;Pattern;Input;Samples;Iterations;Quantization;Gain;Mu;Lambda;Const
     # config = load_cfg('configuration.cfg')
@@ -46,13 +47,15 @@ if __name__ == '__main__':
     # Algorithm to be used in this simulation
     algo = 'SSF'
     # LHC collision pattern
-    pattern = '8b4e'
+    pattern = '48b7e'
     # minimum iteration required, the real value is dependent of the pattern adopted
-    iteration = 12
+    iteration = 110
     # if quantization still zero as above the precision above will be used
-    quantization = 20
+    quantization = 7
     # gain desirable to the simulation
-    gain = 20
+    gain = 10
+    # bits pseudo inverse
+    bpi = 32
     # mu in integer int(math.log(1 / mu, 2))
     mu = 0.25
     muI = int(math.log(1 / mu, 2))
@@ -62,5 +65,6 @@ if __name__ == '__main__':
     constant = u.getTasConst() # TAS
     # constant = 0.6466576567482203  # PCD
 
-    verilog = Verilog(pattern, algo, iteration, muI, lamb, quantization, gain, constant, path=path)
+    verilog = VerilogWithPI(pattern, algo, iteration, muI, lamb, quantization, gain, constant, bpi, path=path)
+    # verilog = VerilogWoutPI(pattern, algo, iteration, muI, lamb, quantization, gain, constant, path=path)
     verilog.generate()

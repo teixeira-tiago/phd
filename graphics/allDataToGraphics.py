@@ -93,17 +93,22 @@ class Graficos:
                          textcoords='data',
                          arrowprops=dict([('arrowstyle', '-'), ('color', color), ('linewidth', linewidth)]))
 
-    def graphROC(self, algos, occupancies, show=True, nome='', file='./data/roc_all.csv', mark=True):
+    def graphROC(self, algos, occupancies, show=True, nome='', file='./data/roc_all.csv', coord=[], mark=True):
         minX, maxX, minY, maxY = 0, 1, 0, 1
         list_im = []
         data = panda.read_csv(file)
+        if len(coord) < 4:
+            x0, y0, x1, y1 = 0, 0.78, 0.2, 0.96
+        else:
+            x0, y0, x1, y1 = coord
         for occupancy in occupancies:
             fig = plt.figure(1, figsize=[6, 4.5], dpi=160, facecolor='w', edgecolor='k')
             ax = fig.add_subplot(1, 1, 1)
             gs1 = gridspec.GridSpec(nrows=20, ncols=20)
             axin = fig.add_subplot(gs1[5:17, 7:19])
-            # ax2 = fig.add_subplot(gs1[1:5, 0:4])
-            # ax2.get_position()
+            # ax2 = fig.add_subplot(gs1[0:1, 0:1])
+            # print(ax2.get_position())
+            # exit()
             axin.margins(x=0, y=-0.25)
             colors = plt.cm.jet(np.linspace(0, 1, len(algos)))
             if len(file) < 1:
@@ -124,10 +129,6 @@ class Graficos:
                 guardaX.append(np.nanstd(dados[col+':FA']))
                 guardaY.append(np.nanstd(dados[col+':DP']))
                 c += 1
-            x0 = 0
-            y0 = 0.8411764705882353 - (0.01488235294117647*occupancy)
-            x1 = 0.125 #+ (0.01488235294117647*occupancy)
-            y1 = 0.99 - (0.01488235294117647*occupancy/2)
 
             axin.set_xlim(x0, x1)
             axin.set_ylim(y0, y1)
@@ -162,16 +163,15 @@ class Graficos:
         if len(list_im) > 1:
             self.saveImg(list_im, nome)
 
-    def graphRMS(self, algos, occupancies, show=True, nome='', file='', mark=True, head=True):
+    def graphRMS(self, algos, occupancies, show=True, nome='', file='./data/roc_all.csv', mark=True, head=True):
         minY, minX, maxY, maxX = 999, 0, 0, 999
         list_im = []
+        data = panda.read_csv(file)
         if head:
             for occupancy in occupancies:
+                if len(file) < 1:
+                    data = panda.read_csv('./data/roc_' + str(occupancy) + '.csv')
                 for algo in algos:
-                    if len(file) > 1:
-                        data = panda.read_csv(file)
-                    else:
-                        data = panda.read_csv('./data/roc_' + str(occupancy) + '.csv')
                     colX = algo+':'+str(occupancy)+':threshold'
                     tmp = int(data.loc[data[colX] == np.nanmax(data[colX])][colX].tolist()[0])
                     maxX = tmp if tmp < maxX else maxX
@@ -187,7 +187,7 @@ class Graficos:
         for algo in algos:
             fig = plt.figure(1, figsize=[6, 4.5], dpi=160, facecolor='w', edgecolor='k')
             ax = fig.add_subplot(1, 1, 1)
-            colors = plt.cm.jet(np.linspace(0, 1, len(algos)))
+            colors = plt.cm.jet(np.linspace(0, 1, len(occupancies)))
             c = 0
             for occupancy in occupancies:
                 if len(file) > 1:
@@ -500,7 +500,7 @@ class Graficos:
 
 
 if __name__ == '__main__':
-    occupancies = [30, 50, 60]#[1, 5, 10, 20, 30, 40, 50, 60, 90]
+    occupancies = [1, 5, 10, 20, 30, 40, 50, 60, 90]
     algos = ['GD', 'SSF', 'PCD', 'TAS', 'GDi', 'SSFi', 'PCDi', 'TASi']
     windows = np.arange(1820)
     lambdas = np.arange(-2, 2.1, 0.1)
@@ -510,14 +510,13 @@ if __name__ == '__main__':
     nome = './results/'
 
     g = Graficos()
-    # revista
+    # revista e testes
     # g.graphROC(['FIR', 'OMP', 'LS-OMP', 'SSF'], [1, 30, 50, 90], mark=False, file='./../results/tese/roc_all.csv')
     # g.algosGrouped(['SSF', 'SSFi'], [30], [0.25], np.arange(1), split=False)
     # g.graphLambdaFull(['SSF'], occupancies, lambdas, np.arange(1, 331, 1), file='./../results/tese/rms_lambda_all.csv', dimension='2D')
-    # g.algosGrouped(algos, occupancies, mus, lambdas, show=False, nome=nome)
-    # g.graphLambdaFull(algos, occupancies, lambdas, iterations, show=False, nome=nome)
-    g.graphLambdaFull(['SSF'], [30, 50, 60], lambdas, iterations, show=True, nome=nome)
-    # g.graphMuFull(algos, occupancies, mus, windows, iterations, show=False, nome=nome)
+    # g.graphLambdaFull(['SSF'], [30, 50, 60], lambdas, iterations, show=True, nome=nome)
+    # g.graphRMS(greedy, [1, 5, 10], show=False, nome=nome + 'rms_greedy')
+    # g.graphROC(old, [1, 5, 10], show=True, nome=nome + 'roc_old_texto')
 
     old = ['MF', 'FIR']
     greedy = ['MP', 'OMP', 'LS-OMP']
@@ -529,21 +528,21 @@ if __name__ == '__main__':
     ap2 = [20, 30, 40]
     ap3 = [50, 60, 90]
 
-    # g.graphRMS(greedy, [1, 5, 10], show=False, nome=nome + 'rms_greedy')
-    # g.graphROC(old, [1, 5, 10], show=True, nome=nome + 'roc_old_texto')
-
+    # g.algosGrouped(algos, occupancies, mus, lambdas, show=False, nome=nome)
+    # g.graphLambdaFull(algos, occupancies, lambdas, iterations, show=False, nome=nome)
+    # g.graphMuFull(algos, occupancies, mus, windows, iterations, show=False, nome=nome)
     # g.graphRMS(old, occupancies, show=False, nome=nome + 'rms_old')
     # g.graphRMS(greedy, occupancies, show=False, nome=nome + 'rms_greedy')
     # g.graphRMS(semP, occupancies, show=False, nome=nome + 'rms_semP')
     # g.graphRMS(comP, occupancies, show=False, nome=nome + 'rms_comP')
-    # g.graphROC(old, texto, show=False, nome=nome + 'roc_old_texto')
+    # g.graphROC(old, texto, show=False, nome=nome + 'roc_old_texto', coord=[0, 0.365, 0.2, 0.91])
     # g.graphROC(old, ap1, show=False, nome=nome + 'roc_old_ap1')
     # g.graphROC(old, ap2, show=False, nome=nome + 'roc_old_ap2')
-    # g.graphROC(old, ap3, show=False, nome=nome + 'roc_old_ap3')
+    # g.graphROC(old, ap3, show=False, nome=nome + 'roc_old_ap3', coord=[0, 0.365, 0.2, 0.91])
     # g.graphROC(greedy, texto, show=False, nome=nome + 'roc_greedy_texto')
     # g.graphROC(greedy, ap1, show=False, nome=nome + 'roc_greedy_ap1')
     # g.graphROC(greedy, ap2, show=False, nome=nome + 'roc_greedy_ap2')
-    # g.graphROC(greedy, ap3, show=False, nome=nome + 'roc_greedy_ap3')
+    # g.graphROC(greedy, ap3, show=False, nome=nome + 'roc_greedy_ap3', coord=[0.05, 0.75, 0.25, 0.91])
     # g.graphROC(semP, texto, show=False, nome=nome + 'roc_semP_texto')
     # g.graphROC(semP, ap1, show=False, nome=nome + 'roc_semP_ap1')
     # g.graphROC(semP, ap2, show=False, nome=nome + 'roc_semP_ap2')

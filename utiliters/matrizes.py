@@ -450,7 +450,7 @@ class Matrizes:
             H[i: i + len(A_F0), i] = A_F0
         A = H.T.dot(H)
         B = np.linalg.pinv(H)
-        B[np.where(np.abs(B) < 1.4)] = 0.0
+        B[np.where(np.abs(B) < 1.0)] = 0.0#B[np.where(np.abs(B) < 1.4)] = 0.0
         return H, A, B
 
     def generateFix(self, bitsH, bitsA):

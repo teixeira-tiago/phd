@@ -104,8 +104,8 @@ def testar(partners, radical, path, occupancy, lock):
                 muX, muY = 0.0, 0.0
                 muXa, muYa = 0.0, 0.0
                 for i in range(ite):
-                    x, muX = algo.PCD(x, Hs, A, returnMu=True, iw=constPCD)
-                    y, muY = algo.PCD(y, Hs, A, returnMu=True, iw=constPCD)
+                    x, muX = algo.PCD(x, Hs, A, returnMu=True, nu=constPCD)
+                    y, muY = algo.PCD(y, Hs, A, returnMu=True, nu=constPCD)
                     muXa += muX
                     muYa += muY
                 mus += '%.6f,%.6f,' % (muXa / ite, muYa / ite)
@@ -115,8 +115,8 @@ def testar(partners, radical, path, occupancy, lock):
                 muX, muY = 0.0, 0.0
                 muXa, muYa = 0.0, 0.0
                 for i in range(ite):
-                    x, muX = algo.TAS(x, Hs, A, returnMu=True, t=constTAS)
-                    y, muY = algo.TAS(y, Hs, A, returnMu=True, t=constTAS)
+                    x, muX = algo.TAS(x, Hs, A, returnMu=True, nu=constTAS)
+                    y, muY = algo.TAS(y, Hs, A, returnMu=True, nu=constTAS)
                     muXa += muX
                     muYa += muY
                 mus += '%.6f,%.6f' % (muXa / ite, muYa / ite)

@@ -447,7 +447,8 @@ class e7b48:
 
     def pcd(self, hs, sig, bits, a, align, gain, mu, lamb, IW):
         B = self.Bx(a, sig, hs, (bits - 5))
-        iB = sig.dot(pow(2, (align + gain))) + B.dot(IW)
+        # iB = sig.dot(pow(2, (align + gain))) + B.dot(IW)
+        iB = sig.dot(pow(2, (align + gain))) + B
         xB = iB - ((IW * lamb) * pow(2, align))
         tmp = np.fix(np.divide(xB, pow(2, (align + gain))))
         aux = np.where(tmp < 0, 0, tmp)

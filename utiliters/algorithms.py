@@ -430,38 +430,35 @@ class Algorithms:
             return x, mu
         return x
 
-    # Separable Surrogate Functionals Least Square
-    def SSFls(self, x, Hs, A, mud=math.inf, lambd=0.0, kappa=math.inf, returnMu=False):
+    # Separable Surrogate Functionals Line Search
+    def SSFls(self, x, Hs, A, mud=math.inf, lambd=0.0, nu=math.inf, returnMu=False):
         B = Hs - A.dot(x)
         if mud == math.inf:
             mu = B.T.dot(B) / B.T.dot(A).dot(B)
         else:
             mu = mud
-        temp = (x + B.dot(mu)) - lambd
+        if nu == math.inf:
+            u = Utiliters()
+            nu = np.mean(np.sqrt(x*u.getPcdConst(A)))-1 if not(np.nan) else u.getPcdConst(A)
+        temp = (x + B) - (nu * lambd)
         temp = np.where(temp < 0, 0, temp)
-        D = temp - x
-        returnKa = False
-        if kappa == math.inf:
-            kap = D.T.dot(D) / D.T.dot(A).dot(D)
-            returnKa = True
-        else:
-            kap = kappa
-        x = x + (D.dot(kap))
-        if returnKa:
-            return x, kap
+        d = temp - x
+        x = x + (d.dot(mu))
+        if returnMu:
+            return x, mu
         return x
 
     # Parallel Coordinate Descent
-    def PCD(self, x, Hs, A, mud=math.inf, lambd=0.0, iw=math.inf, returnMu=False):
+    def PCD(self, x, Hs, A, mud=math.inf, lambd=0.0, nu=math.inf, returnMu=False):
         B = Hs - A.dot(x)
         if mud == math.inf:
             mu = B.T.dot(B) / B.T.dot(A).dot(B)
         else:
             mu = mud
-        if iw == math.inf:
+        if nu == math.inf:
             u = Utiliters()
-            iw = u.getPcdConst(A)
-        temp = (x + B.dot(iw)) - (iw * lambd)
+            nu = u.getPcdConst(A)
+        temp = (x + B) - (nu * lambd)
         temp = np.where(temp < 0, 0, temp)
         d = temp - x
         x = x + (d.dot(mu * 2))
@@ -470,16 +467,16 @@ class Algorithms:
         return x
 
     # Teixeira Andrade Shrinkage
-    def TAS(self, x, Hs, A, mud=math.inf, lambd=0.0, t=math.inf, returnMu=False):
+    def TAS(self, x, Hs, A, mud=math.inf, lambd=0.0, nu=math.inf, returnMu=False):
         B = Hs - A.dot(x)
         if mud == math.inf:
             mu = B.T.dot(B) / B.T.dot(A).dot(B)
         else:
             mu = mud
-        if t == math.inf:
+        if nu == math.inf:
             u = Utiliters()
-            t = u.getTasConst()
-        temp = ((x + B).dot(t)) - (t * lambd)
+            nu = u.getTasConst()
+        temp = ((x + B).dot(nu)) - (nu * lambd)
         temp = np.where(temp < 0, 0, temp)
         d = temp - x
         x = x + d.dot(mu)

@@ -10,8 +10,8 @@ from src.utiliters.util import Utiliters
 u = Utiliters()
 matrizes = Matrizes()
 matrix = matrizes.matrix()
-b = 48; e = 7
-#b = 8; e = 4
+b, e = 48, 7
+#b, e = 8, 4
 
 partner = '%db%de' % (b, e)
 H, A, B = matrizes.generate(b)
@@ -49,7 +49,7 @@ totalSamples = 1820
 # signal = algo.MatchedF(10, totalSamples, signalN, h)
 # print(gerador.rms(signal - signalT))
 
-path = '../testes/signals/'
+path = '../tests/signals/'
 signalT = np.genfromtxt(path + 'signalT_48b7e_30.csv', delimiter=',')
 signalN = np.genfromtxt(path + 'signalN_48b7e_30.csv', delimiter=',')
 nnzST = np.count_nonzero(signalT)
@@ -87,55 +87,56 @@ for i in range(totalSamples):
     # x = np.where(x < 0, 0, x)
     # signalGD[step:paso] = np.divide(x, pow(2, gain))
     #
-    muF = 0.125
-    gain = 5
-    bitsH = 5
-    bits = gain + 10
-    iterations = 165
-    bitsA = bitsH + 5
-    align = bitsA
-    mh, ma = matrizes.generateFix(bitsH, bitsA)
-    Hs = algov.hsignal(signalS, mh)
-    x = xAll.dot(pow(2, gain))
-    x = algov.SSF([x, Hs, ma, muF, iterations, bits, align, 6])
-    x = np.where(x < 0, 0, x)
-    signalSSF[step:paso] = np.divide(x, pow(2, gain))
-    #
-    # muF = 0.5
-    # gain = 6
-    # bitsH = 6
+    # muF = 0.125
+    # gain = 5
+    # bitsH = 5
     # bits = gain + 10
-    # iterations = 55
+    # iterations = 165
     # bitsA = bitsH + 5
     # align = bitsA
     # mh, ma = matrizes.generateFix(bitsH, bitsA)
     # Hs = algov.hsignal(signalS, mh)
     # x = xAll.dot(pow(2, gain))
-    # constPCDv = int(np.round(constPCD * math.pow(2, gain)))
-    # x = algov.PCD([x, Hs, ma, muF, iterations, bits, align, 0, gain, constPCDv])
+    # x = algov.SSF([x, Hs, ma, muF, iterations, bits, align, 6])
     # x = np.where(x < 0, 0, x)
-    # signalPCD[step:paso] = np.divide(x, pow(2, gain))
-
-    muF = 0.25
-    gain = 10
+    # signalSSF[step:paso] = np.divide(x, pow(2, gain))
+    #
+    muF = 0.5
+    gain = 6
     bitsH = 6
     bits = gain + 10
-    iterations = 110
+    iterations = 55
     bitsA = bitsH + 5
     align = bitsA
     mh, ma = matrizes.generateFix(bitsH, bitsA)
     Hs = algov.hsignal(signalS, mh)
     x = xAll.dot(pow(2, gain))
-    constTASv = int(np.round(constTAS * math.pow(2, gain)))
-    x = algov.TAS([x, Hs, ma, muF, iterations, bits, align, 10, gain, constTASv])
+    constPCDv = int(np.round(constPCD * math.pow(2, gain)))
+    x = algov.PCD([x, Hs, ma, muF, iterations, bits, align, 0, gain, constPCDv])
     x = np.where(x < 0, 0, x)
-    signalTAS[step:paso] = np.divide(x, pow(2, gain))
+    signalPCD[step:paso] = np.divide(x, pow(2, gain))
+
+    # muF = 0.25
+    # gain = 10
+    # bitsH = 6
+    # bits = gain + 10
+    # iterations = 110
+    # bitsA = bitsH + 5
+    # align = bitsA
+    # mh, ma = matrizes.generateFix(bitsH, bitsA)
+    # Hs = algov.hsignal(signalS, mh)
+    # x = xAll.dot(pow(2, gain))
+    # constTASv = int(np.round(constTAS * math.pow(2, gain)))
+    # x = algov.TAS([x, Hs, ma, muF, iterations, bits, align, 10, gain, constTASv])
+    # x = np.where(x < 0, 0, x)
+    # signalTAS[step:paso] = np.divide(x, pow(2, gain))
 # print('GD', gerador.roc(signalGD, signalT, nnzST, nzST))
 # print('SSF', gerador.roc(signalSSF, signalT, nnzST, nzST))
 # print('PCD', gerador.roc(signalPCD, signalT, nnzST, nzST))
 # print('TAS', gerador.roc(signalTAS, signalT, nnzST, nzST))
-print('SSF', gerador.rms(signalSSF - signalT))
-print('TAS', gerador.rms(signalTAS - signalT))
+# print('SSF', gerador.rms(signalSSF - signalT))
+print('PCD', gerador.rms(signalPCD - signalT))
+# print('TAS', gerador.rms(signalTAS - signalT))
 # verilog = XbYe()
 # algov = verilog.getAlgo([str(b)+'b'+str(e)+'e'])
 # signalT, signalN = gerador.signalGenerator(samples, b, fillAd, fillAe, matrix.matrix())
