@@ -11,25 +11,24 @@ import collections
 import numpy as np
 import pandas as pd
 from subprocess import check_output
-from src.utiliters.algorithmsVerilog import XbYe
-from src.utiliters.algorithms import Algorithms
-from src.utiliters.mathLaboratory import Signal
-from src.simulations.simulation import Verilog
-from src.utiliters.matrizes import Matrizes
-from src.utiliters.util import Utiliters
+try:
+    from src.utiliters.algorithmsVerilog import XbYe
+    from src.utiliters.algorithms import Algorithms
+    from src.utiliters.mathLaboratory import Signal
+    from src.simulations.simulation import Verilog
+    from src.utiliters.matrizes import Matrizes
+    from src.utiliters.util import Utiliters
+except ModuleNotFoundError:
+    from utiliters.algorithmsVerilog import XbYe
+    from utiliters.algorithms import Algorithms
+    from utiliters.mathLaboratory import Signal
+    from simulations.simulation import Verilog
+    from utiliters.matrizes import Matrizes
+    from utiliters.util import Utiliters
 
-
-def sgen(partner, samples, b, fillAd, fillAe, matrix, path):
-    signalT, signalN = gerador.signalGenerator(samples, b, fillAd, fillAe, matrix)
-    signalTf, signalNf = gerador.signalGenerator(samples, b, fillAd, fillAe, matrix)
-    np.savetxt(path + 'signalT_' + partner + '.csv', signalT, delimiter=',')
-    np.savetxt(path + 'signalN_' + partner + '.csv', signalN, delimiter=',')
-    np.savetxt(path + 'fir/signalT_' + partner + '.csv', signalTf, delimiter=',')
-    np.savetxt(path + 'fir/signalN_' + partner + '.csv', signalNf, delimiter=',')
-    return signalT, signalN, signalTf, signalNf
-
-def sparseConst(partner, path, nome, signalGenerate=False):
-    bunch = partner.rsplit('b', 1)
+def sparseConst(pattern, path, nome, signalGenerate=False):
+    util = Utiliters()
+    bunch = pattern.rsplit('b', 1)
     empty = bunch[1].rsplit('e', 1)
     b = int(bunch[0])
     e = int(empty[0])
@@ -48,20 +47,20 @@ def sparseConst(partner, path, nome, signalGenerate=False):
         fillCe = np.zeros(halfCe)
     else:
         fillCe = np.arange(0)
-    H, A = matrizes.generate(b)
+    H, A, B = matrizes.generate(b)
     matrix = matrizes.matrix()
     constPCD = np.mean(np.power(np.diag(A), -1))
     constTAS = 33 / 32
     if signalGenerate:
-        signalT, signalN, signalTf, signalNf = sgen(partner, samples, b, fillAd, fillAe, matrix, path)
+        signalT, signalN, signalTf, signalNf = util.sgen(pattern, samples, b, fillAd, fillAe, matrix, path)
     else:
         try:
-            signalT = np.genfromtxt(path + 'signalT_' + partner + '.csv', delimiter=',')
-            signalN = np.genfromtxt(path + 'signalN_' + partner + '.csv', delimiter=',')
-            signalTf = np.genfromtxt(path + 'fir/signalT_' + partner + '.csv', delimiter=',')
-            signalNf = np.genfromtxt(path + 'fir/signalN_' + partner + '.csv', delimiter=',')
+            signalT = np.genfromtxt(path + 'signalT_' + pattern + '.csv', delimiter=',')
+            signalN = np.genfromtxt(path + 'signalN_' + pattern + '.csv', delimiter=',')
+            signalTf = np.genfromtxt(path + 'fir/signalT_' + pattern + '.csv', delimiter=',')
+            signalNf = np.genfromtxt(path + 'fir/signalN_' + pattern + '.csv', delimiter=',')
         except:
-            signalT, signalN, signalTf, signalNf = sgen(partner, samples, b, fillAd, fillAe, matrix, path)
+            signalT, signalN, signalTf, signalNf = util.sgen(pattern, samples, b, fillAd, fillAe, matrix, path)
     nnzST = np.count_nonzero(signalT)
     nzST = len(signalT) - nnzST
     signalF = algo.FIR(26, signalNf, signalTf, signalN)
@@ -70,10 +69,10 @@ def sparseConst(partner, path, nome, signalGenerate=False):
     return collections.OrderedDict(
         {'nome': nome, 'it': 20, 'b': b, 'e': e, 'window': window, 'fillAd': fillAd, 'fillAe': fillAe, 'fillCd': fillCd,
          'fillCe': fillCe, 'constPCD': constPCD, 'constTAS': constTAS, 'nnzST': nnzST, 'nzST': nzST, 'rmsFIR': rmsFIR,
-         'stdFIR': stdFIR, 'H': H, 'A': A, 'signalT': signalT, 'signalN': signalN, 'partners': partners, 'sG': sG,
+         'stdFIR': stdFIR, 'H': H, 'A': A, 'signalT': signalT, 'signalN': signalN, 'patterns': patterns, 'sG': sG,
          'eG': eG, 'sQ': sQ, 'eQ': eQ, 'sM': sM, 'eM': eM, 'samples': samples, 'algo': ['TAS', 'SSF', 'GD', 'PCD']})
 
-def testar(partners, radical, sL, eL, const, lock):
+def testar(patterns, radical, sL, eL, const, lock):
     u = Utiliters()
     info = u.setup_logger('information', radical + 'info.log')
     startedI = datetime.datetime.now()
@@ -86,12 +85,12 @@ def testar(partners, radical, sL, eL, const, lock):
     algo = Algorithms()
     verilog = XbYe()
 
-    for partner in partners:
+    for pattern in patterns:
         started = datetime.datetime.now()
-        print('Started Float Tests, for lambda %d and with the partner %s at %s' % (
-            sL, partner, started.strftime("%H:%M:%S %d/%m/%Y")))
-        info.info('Started Float Tests, for lambda %d and with the partner %s' % (sL, partner))
-        sConst = const[partner]
+        print('Started Float Tests, for lambda %d and with the pattern %s at %s' % (
+            sL, pattern, started.strftime("%H:%M:%S %d/%m/%Y")))
+        info.info('Started Float Tests, for lambda %d and with the pattern %s' % (sL, pattern))
+        sConst = const[pattern]
         nome = sConst['nome']
         b = sConst['b']
         e = sConst['e']
@@ -185,24 +184,24 @@ def testar(partners, radical, sL, eL, const, lock):
             iterations += window
 
         ended = datetime.datetime.now()
-        print('Ended Float Tests, for lambda %d and with the partner %s at %s after %s' % (
-            sL, partner, ended.strftime("%H:%M:%S %d/%m/%Y"), u.totalTime(started)))
-        info.info('Ended Float Tests, for lambda %d and with the partner %s after %s' % (
-            sL, partner, u.totalTime(started)))
+        print('Ended Float Tests, for lambda %d and with the pattern %s at %s after %s' % (
+            sL, pattern, ended.strftime("%H:%M:%S %d/%m/%Y"), u.totalTime(started)))
+        info.info('Ended Float Tests, for lambda %d and with the pattern %s after %s' % (
+            sL, pattern, u.totalTime(started)))
         # Fix tests
         started = datetime.datetime.now()
-        print('Started Fix Tests, for lambda %d and with the partner %s at %s' % (
-            sL, partner, started.strftime("%H:%M:%S %d/%m/%Y")))
-        info.info('Started Fix Tests, for lambda %d and with the partner %s' % (sL, partner))
-        algov = verilog.getAlgo([partner])
+        print('Started Fix Tests, for lambda %d and with the pattern %s at %s' % (
+            sL, pattern, started.strftime("%H:%M:%S %d/%m/%Y")))
+        info.info('Started Fix Tests, for lambda %d and with the pattern %s' % (sL, pattern))
+        algov = verilog.getAlgo([pattern])
         iterations = sConst['it']
         iterations = int(math.ceil(iterations / window) * window)
         while (iterations < (150 + window)):
             startedIT = datetime.datetime.now()
-            print('Start Fix Tests, for lambda %d and with the partner %s and with %d iterations at %s' % (
-                sL, partner, iterations, startedIT.strftime("%H:%M:%S %d/%m/%Y")))
-            info.info('Start Fix Tests, for lambda %d and with the partner %s and with %d iterations' % (
-                sL, partner, iterations))
+            print('Start Fix Tests, for lambda %d and with the pattern %s and with %d iterations at %s' % (
+                sL, pattern, iterations, startedIT.strftime("%H:%M:%S %d/%m/%Y")))
+            info.info('Start Fix Tests, for lambda %d and with the pattern %s and with %d iterations' % (
+                sL, pattern, iterations))
             for muI in range(sM, eM):
                 muF = 1 / math.pow(2, muI)
                 for quantization in range(sQ, eQ):
@@ -273,15 +272,15 @@ def testar(partners, radical, sL, eL, const, lock):
                                         file.write(linha)
 
             ended = datetime.datetime.now()
-            print('Ended Fix Tests, for lambda %d and with the partner %s and with %d iterations at %s after %s' % (
-                sL, partner, iterations, ended.strftime("%H:%M:%S %d/%m/%Y"), u.totalTime(startedIT)))
-            info.info('Ended Fix Tests, for lambda %d and with the partner %s and with %d iterations after %s' % (
-                sL, partner, iterations, u.totalTime(startedIT)))
+            print('Ended Fix Tests, for lambda %d and with the pattern %s and with %d iterations at %s after %s' % (
+                sL, pattern, iterations, ended.strftime("%H:%M:%S %d/%m/%Y"), u.totalTime(startedIT)))
+            info.info('Ended Fix Tests, for lambda %d and with the pattern %s and with %d iterations after %s' % (
+                sL, pattern, iterations, u.totalTime(startedIT)))
             iterations += window
-        print('Ended Fix Tests, for lambda %d and with the partner %s at %s after %s' % (
-            sL, partner, ended.strftime("%H:%M:%S %d/%m/%Y"), u.totalTime(started)))
-        info.info('Ended Fix Tests, for lambda %d and with the partner %s after %s' % (
-            sL, partner, u.totalTime(started)))
+        print('Ended Fix Tests, for lambda %d and with the pattern %s at %s after %s' % (
+            sL, pattern, ended.strftime("%H:%M:%S %d/%m/%Y"), u.totalTime(started)))
+        info.info('Ended Fix Tests, for lambda %d and with the pattern %s after %s' % (
+            sL, pattern, u.totalTime(started)))
     ended = datetime.datetime.now()
     print('Ended Quantization Test, for lambda %d at %s after %s' % (
         sL, ended.strftime("%H:%M:%S %d/%m/%Y"), u.totalTime(startedI)))
@@ -290,8 +289,8 @@ def testar(partners, radical, sL, eL, const, lock):
 
 class Simulations():
 
-    def __init__(self, partners):
-        self.partners = partners
+    def __init__(self, patterns):
+        self.patterns = patterns
 
     def getMin(self, value):
         res = 0
@@ -319,10 +318,10 @@ class Simulations():
 
     def verilogQuantization(self, radical, signalGenerate=False):
         const = []
-        for partner in self.partners:
-            nome = radical + partner + '_'
-            sConst = sparseConst(partner, path, nome, signalGenerate)
-            const.append([partner, sConst])
+        for pattern in self.patterns:
+            nome = radical + pattern + '_'
+            sConst = sparseConst(pattern, path, nome, signalGenerate)
+            const.append([pattern, sConst])
             line = [
                 'Iterations,mu,lambda,GD:RMS,SSF:RMS,PCD:RMS,TAS:RMS,GDi:RMS,SSFi:RMS,PCDi:RMS,TASi:RMS,Configuration:,Samples,FIR:26:RMS,PCD:Const,TAS:Const\ninf,inf,inf,inf,inf,inf,inf,inf,inf,inf,inf,inf' + u.s(
                     samples) + u.s(sConst['rmsFIR']) + u.s(sConst['constPCD']) + u.s(sConst['constTAS']) + '\n']
@@ -341,7 +340,7 @@ class Simulations():
         m = Manager()
         loock = m.Lock()
         pool = ProcessPoolExecutor()
-        futures = [pool.submit(testar, partners, radical, lamb, lamb + 1, self.const, loock) for lamb in range(4)]
+        futures = [pool.submit(testar, patterns, radical, lamb, lamb + 1, self.const, loock) for lamb in range(4)]
         for future in futures:
             future.result()
         return self.const
@@ -352,19 +351,19 @@ class Simulations():
         if stand:
             stands = stand
         else:
-            stands = self.partners
+            stands = self.patterns
         bestConfig = []
         bestPerform = []
-        for partner in stands:
-            algo = self.const[partner]['algo']
-            nome = radical + partner + '_' + suffix + '.csv'
+        for pattern in stands:
+            algo = self.const[pattern]['algo']
+            nome = radical + pattern + '_' + suffix + '.csv'
             data = pd.read_csv(nome)
             auxConf = []
             auxPerf = []
             for a in algo:
                 label = a + ':RMS'
                 indexConf = self.getMin(np.asarray(data[label]))
-                indexPerf = self.getMax(np.asarray(data[label]), self.const[partner]['rmsFIR'])
+                indexPerf = self.getMax(np.asarray(data[label]), self.const[pattern]['rmsFIR'])
                 tmpConf = []
                 tmpPerf = []
                 for e in eixo:
@@ -374,28 +373,28 @@ class Simulations():
                     tmpPerf.append([e, np.nan if np.isinf(dado) else dado])
                 auxConf.append([a, collections.OrderedDict(tmpConf)])
                 auxPerf.append([a, collections.OrderedDict(tmpPerf)])
-            bestConfig.append([partner, collections.OrderedDict(auxConf)])
-            bestPerform.append([partner, collections.OrderedDict(auxPerf)])
+            bestConfig.append([pattern, collections.OrderedDict(auxConf)])
+            bestPerform.append([pattern, collections.OrderedDict(auxPerf)])
         return collections.OrderedDict({'config': collections.OrderedDict(bestConfig),
                                         'perform': collections.OrderedDict(bestPerform)})
 
     def getAllDados(self, dados, suffix='fix'):
-        stands = self.partners
+        stands = self.patterns
         eixo = ['RMS', 'FPR', 'TPR']
         bestConfig = []
         bestPerform = []
-        for partner in stands:
-            algo = self.const[partner]['algo']
-            nome = radical + partner + '_' + suffix + '.csv'
+        for pattern in stands:
+            algo = self.const[pattern]['algo']
+            nome = radical + pattern + '_' + suffix + '.csv'
             data = pd.read_csv(nome)
             auxConf = []
             auxPerf = []
             for a in algo:
                 label = a + ':' + eixo[0]
                 indexConf = self.getMin(np.asarray(data[label]))
-                indexPerf = self.getMax(np.asarray(data[label]), self.const[partner]['rmsFIR'])
-                tmpConf = list(dados['config'][partner][a].items())
-                tmpPerf = list(dados['perform'][partner][a].items())
+                indexPerf = self.getMax(np.asarray(data[label]), self.const[pattern]['rmsFIR'])
+                tmpConf = list(dados['config'][pattern][a].items())
+                tmpPerf = list(dados['perform'][pattern][a].items())
                 for e in eixo:
                     dado = data[a + ':' + e][indexConf]
                     tmpConf.append([e, np.nan if np.isinf(dado) else dado])
@@ -403,8 +402,8 @@ class Simulations():
                     tmpPerf.append([e, np.nan if np.isinf(dado) else dado])
                 auxConf.append([a, collections.OrderedDict(tmpConf)])
                 auxPerf.append([a, collections.OrderedDict(tmpPerf)])
-            bestConfig.append([partner, collections.OrderedDict(auxConf)])
-            bestPerform.append([partner, collections.OrderedDict(auxPerf)])
+            bestConfig.append([pattern, collections.OrderedDict(auxConf)])
+            bestPerform.append([pattern, collections.OrderedDict(auxPerf)])
         return collections.OrderedDict({'config': collections.OrderedDict(bestConfig),
                                         'perform': collections.OrderedDict(bestPerform)})
 
@@ -448,29 +447,29 @@ class Simulations():
     def analysesAndSyntesis(self, config, stand, algo, const, param, pathV='./', logA='./', logS='./'):
         startedIntern = datetime.datetime.now()
         print(
-            'Start Altera Quartus analyses and synthesis of the best %s of the partner %s of the algorithm %s at %s' % (
+            'Start Altera Quartus analyses and synthesis of the best %s of the pattern %s of the algorithm %s at %s' % (
             config, stand, algo, startedIntern.strftime("%H:%M:%S %d/%m/%Y")))
-        info.info('Start Altera Quartus analyses and synthesis of the best %s of the partner %s of the algorithm %s' % (config, stand, algo))
+        info.info('Start Altera Quartus analyses and synthesis of the best %s of the pattern %s of the algorithm %s' % (config, stand, algo))
         verilog = self.quartusAnalysesAndSyntheses(stand, algo, param['Iterations'], param['mu'], param['Lambda'],
                                                    param['Quantization'], param['Gain'], constant=const, pathV=pathV,
                                                    logA=logA)
         endedIntern = datetime.datetime.now()
         print(
-            'Finished Altera Quartus analyses and synthesis  of the best %s of the partner %s of the algorithm %s at %s after %s' % (
+            'Finished Altera Quartus analyses and synthesis  of the best %s of the pattern %s of the algorithm %s at %s after %s' % (
                 config, stand, algo, endedIntern.strftime("%H:%M:%S %d/%m/%Y"), u.totalTime(startedIntern)))
         info.info(
-            'Finished Altera Quartus analyses and synthesis  of the best %s of the partner %s of the algorithm %s after %s' % (
+            'Finished Altera Quartus analyses and synthesis  of the best %s of the pattern %s of the algorithm %s after %s' % (
             config, stand, algo, u.totalTime(startedIntern)))
 
         startedIntern = endedIntern
-        print('Start Model-Sim simulate of the best %s of the partner %s of the algorithm %s at %s' % (
+        print('Start Model-Sim simulate of the best %s of the pattern %s of the algorithm %s at %s' % (
             config, stand, algo, startedIntern.strftime("%H:%M:%S %d/%m/%Y")))
-        info.info('Start Model-Sim simulate of the best %s of the partner %s of the algorithm %s' % (config, stand, algo))
+        info.info('Start Model-Sim simulate of the best %s of the pattern %s of the algorithm %s' % (config, stand, algo))
         rmsV, logicE = self.modelSimSimulate(stand, verilog, param['Gain'], pathV=pathV, logS=logS)
         endedIntern = datetime.datetime.now()
-        print('Finished Model-Sim simulate of the best %s of the partner %s of the algorithm %s at %s after %s' % (
+        print('Finished Model-Sim simulate of the best %s of the pattern %s of the algorithm %s at %s after %s' % (
             config, stand, algo, endedIntern.strftime("%H:%M:%S %d/%m/%Y"), u.totalTime(startedIntern)))
-        info.info('Finished Model-Sim simulate of the best %s of the partner %s of the algorithm %s after %s' % (
+        info.info('Finished Model-Sim simulate of the best %s of the pattern %s of the algorithm %s after %s' % (
             config, stand, algo, u.totalTime(startedIntern)))
         return rmsV, logicE
 
@@ -535,8 +534,8 @@ if __name__ == '__main__':
     sM = 1
     eM = 4
     samples = 1820
-    partners = ['48b7e']
-    #partners = ['48b7e', '8b4e']
+    patterns = ['48b7e']
+    #patterns = ['48b7e', '8b4e']
     timestr = time.strftime("%Y%m%d-%H%M%S")
     radical = './../results/testQuant_' + timestr + '_'
     path = './../testes/signals/'
@@ -546,7 +545,7 @@ if __name__ == '__main__':
     erro = u.setup_logger('', radical + 'erro.log', logging.WARNING)
     info.info('Start Simulations')
     startedQuantization = datetime.datetime.now()
-    simulations = Simulations(partners)
+    simulations = Simulations(patterns)
     print('Start Quantization Simulation at ' + startedQuantization.strftime("%H:%M:%S %d/%m/%Y"))
     info.info('Start Quantization Simulation')
     constante = None

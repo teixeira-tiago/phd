@@ -1,9 +1,15 @@
 # -*- coding: utf-8 -*-
 from subprocess import check_output
-from src.utiliters.algorithms import Algorithms
-from src.utiliters.matrizes import Matrizes
-from src.utiliters.mathLaboratory import Signal
-from src.utiliters.util import Utiliters
+try:
+    from src.utiliters.algorithms import Algorithms
+    from src.utiliters.matrizes import Matrizes
+    from src.utiliters.mathLaboratory import Signal
+    from src.utiliters.util import Utiliters
+except ModuleNotFoundError:
+    from utiliters.algorithms import Algorithms
+    from utiliters.matrizes import Matrizes
+    from utiliters.mathLaboratory import Signal
+    from utiliters.util import Utiliters
 import numpy as np
 import collections
 import functools
@@ -101,10 +107,10 @@ class Verilog:
             line.append('// Teixeira Andrade Shrinkage - TAS\n\n')
             const = ' | Constant: ' + str(args[8])
 
-        line.append('//Pattern: ' + args[0] + ' | Iterations: ' + str(int(args[3])) + ' | Quant.: ' + str(
+        line.append('// Pattern: ' + args[0] + ' | Iterations: ' + str(int(args[3])) + ' | Quant.: ' + str(
             int(args[2])-1) + ' | Gain: ' + str(int(args[4]))+'\n')
         line.append(
-            '//Mu: ' + str(1 / math.pow(2, int(args[6]))) + ' | Lambda: ' + str(args[7]) + const +'\n\n')
+            '// Mu: ' + str(1 / math.pow(2, int(args[6]))) + ' | Lambda: ' + str(args[7]) + const +'\n\n')
         line.append('module main\n#(\n')
         line.append('\tparameter totalITR = ' + str(math.ceil(args[3] / window)) + ',\n')
         line.append('\tparameter bits = ' + str(int(args[1]) + int(args[4])) + ',\n')
@@ -1009,7 +1015,7 @@ class FloatAlgo:
         gerador = Signal()
         matrix = matrizes.matrix()
         algo = Algorithms()
-        H, A = matrizes.generate(b)
+        H, A, B = matrizes.generate(b)
         const = 0
         if args[1] == 'PCD':
             const = np.mean(np.power(np.diag(A), -1))

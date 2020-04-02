@@ -16,13 +16,12 @@ except ModuleNotFoundError:
     from utiliters.mathLaboratory import Signal
     from utiliters.util import Utiliters
 
-def testar(patterns, const, radical, path, occupancy, lock):
+def testar(patterns, const, metodos, radical, path, occupancy, lock):
     u = Utiliters()
     info = u.setup_logger('information', radical + 'info.log')
     startedI = datetime.datetime.now()
     print('Started Quantization Test, for occupancy %d at %s' % (occupancy, startedI.strftime("%H:%M:%S %d/%m/%Y")))
     info.info('Started Quantization Test, for occupancy %d' % occupancy)
-    rms = np.zeros(2)#np.zeros(8)
     gerador = Signal()
     algo = Algorithms()
     matrizes = Matrizes()
@@ -68,20 +67,18 @@ def testar(patterns, const, radical, path, occupancy, lock):
         signalF = algo.FIR(26, signalNf, signalTf, signalN)
         rmsFIR = gerador.rms(signalF - signalT)
         stdFIR = gerador.std(signalF - signalT)
-        line = [
-            'Iterations,mu,lambda,SSF:RMS,SSFi:RMS,Configuration:,Samples,FIR:26:RMS\ninf,inf,inf,inf,inf,inf' + u.s(
-                samples) + u.s(rmsFIR) + '\n']
-        # 'Iterations,mu,lambda,GD:RMS,SSF:RMS,PCD:RMS,TAS:RMS,GDi:RMS,SSFi:RMS,PCDi:RMS,TASi:RMS,Configuration:,Samples,FIR:26:RMS,PCD:Const,TAS:Const\ninf,inf,inf,inf,inf,inf,inf,inf,inf,inf,inf,inf' + u.s(
-        #     samples) + u.s(sConst['rmsFIR']) + u.s(sConst['constPCD']) + u.s(sConst['constTAS']) + '\n']
+        total = len(metodos)
+        line = ['Iterations,mu,lambda,']
+        for metodo in metodos:
+            line.append(metodo + ':RMS,')
+        line.append('Configuration:,Samples,FIR:26:RMS\ninf,inf,inf,inf,inf,inf' + u.s(samples) + u.s(rmsFIR) + '\n')
         with open(nome + '.csv', 'w') as file:
             for linha in line:
                 file.write(linha)
         started = datetime.datetime.now()
-        print('Started Float Tests, for occupancy %d and with the pattern %s at %s' % (
+        print('Started Tests, for occupancy %d and with the pattern %s at %s' % (
             occupancy, pattern, started.strftime("%H:%M:%S %d/%m/%Y")))
-        info.info('Started Float Tests, for occupancy %d and with the pattern %s' % (occupancy, pattern))
-        # Float tests
-        #iterations = int(math.ceil(iterations / window) * window)
+        info.info('Started Tests, for occupancy %d and with the pattern %s' % (occupancy, pattern))
         for it in range(1, iterations):
             for lam in range(const['sL'], const['eL']):
                 if lam != 0:
@@ -94,77 +91,45 @@ def testar(patterns, const, radical, path, occupancy, lock):
                         mi = math.inf
                     else:
                         mi = muF
-                    signalGD = np.zeros(window * samples)
-                    signalSSF = np.zeros(window * samples)
-                    signalPCD = np.zeros(window * samples)
-                    signalTAS = np.zeros(window * samples)
-                    signalGDi = np.zeros(window * samples)
-                    signalSSFi = np.zeros(window * samples)
-                    signalPCDi = np.zeros(window * samples)
-                    signalTASi = np.zeros(window * samples)
-                    for ite in range(samples):
-                        step = (ite * window)
-                        paso = step + window
-                        if (e > 6):
-                            paso = paso - (e - 6)
-                        signalS = np.concatenate((fillCd, signalN[step:paso], fillCe))
-                        step += halfA
-                        paso = step + b
+                    signalA = np.zeros(window * samples)
+                    rms = [0] * total
+                    for idx in range(total):
+                        metodo = metodos[idx]
+                        for ite in range(samples):
+                            step = (ite * window)
+                            paso = step + window
+                            if (e > 6):
+                                paso = paso - (e - 6)
+                            signalS = np.concatenate((fillCd, signalN[step:paso], fillCe))
+                            step += halfA
+                            paso = step + b
 
-                        xAll = signalS[3:b + 3]
-                        Bs = B.dot(signalS)
-                        Hs = H.T.dot(signalS)
+                            xAll = signalS[3:b + 3]
+                            Bs = B.dot(signalS)
+                            Hs = H.T.dot(signalS)
 
-                        # x = xAll
-                        # y = Bs
-                        # for i in range(it):
-                        #     x = algo.GD(x, Hs, A, mi)
-                        #     y = algo.GD(y, Hs, A, mi)
-                        # x = np.where(x < 0, 0, x)
-                        # y = np.where(y < 0, 0, y)
-                        # signalGD[step:paso] = x
-                        # signalGDi[step:paso] = y
-
-                        x = xAll
-                        y = Bs
-                        for i in range(it):
-                            x = algo.SSF(x, Hs, A, mi, lamb)
-                            y = algo.SSF(y, Hs, A, mi, lamb)
-                        x = np.where(x < 0, 0, x)
-                        y = np.where(y < 0, 0, y)
-                        signalSSF[step:paso] = x
-                        signalSSFi[step:paso] = y
-
-                        # x = xAll
-                        # y = Bs
-                        # for i in range(it):
-                        #     x = algo.PCD(x, Hs, A, mi, lamb, constPCD)
-                        #     y = algo.PCD(y, Hs, A, mi, lamb, constPCD)
-                        # x = np.where(x < 0, 0, x)
-                        # y = np.where(y < 0, 0, y)
-                        # signalPCD[step:paso] = x
-                        # signalPCDi[step:paso] = y
-                        #
-                        # x = xAll
-                        # y = Bs
-                        # for i in range(it):
-                        #     x = algo.TAS(x, Hs, A, mi, lamb, constTAS)
-                        #     y = algo.TAS(y, Hs, A, mi, lamb, constTAS)
-                        # x = np.where(x < 0, 0, x)
-                        # y = np.where(y < 0, 0, y)
-                        # signalTAS[step:paso] = x
-                        # signalTASi[step:paso] = y
-                    rms[0] = gerador.rms(signalSSF - signalT)
-                    rms[1] = gerador.rms(signalSSFi - signalT)
-                    # rms[2] = gerador.rms(signalGD - signalT)
-                    # rms[3] = gerador.rms(signalGDi - signalT)
-                    # rms[4] = gerador.rms(signalPCD - signalT)
-                    # rms[5] = gerador.rms(signalPCDi - signalT)
-                    # rms[6] = gerador.rms(signalTAS - signalT)
-                    # rms[7] = gerador.rms(signalTASi - signalT)
-
+                            if 'i' in metodo:
+                                x = Bs
+                            else:
+                                x = xAll
+                            for i in range(it):
+                                if 'GDP' in metodo:
+                                    x = algo.GDP(x, Hs, A, mi)
+                                elif 'GD' in metodo:
+                                    x = algo.GD(x, Hs, A, mi)
+                                elif 'SSFlsc' in metodo:
+                                    x = algo.SSFlsc(x, Hs, A, mi, lamb, constTAS)
+                                elif 'SSFls' in metodo:
+                                    x = algo.SSFls(x, Hs, A, mi, lamb, constPCD)
+                                elif 'SSF' in metodo:
+                                    x = algo.SSF(x, Hs, A, mi, lamb)
+                                elif 'PCD' in metodo:
+                                    x = algo.PCD(x, Hs, A, mi, lamb, constPCD)
+                            x = np.where(x < 0, 0, x)
+                            signalA[step:paso] = x
+                        rms[idx] = gerador.rms(signalA - signalT)
                     line = [str(it) + u.s(muF) + u.s(lamb)]
-                    for j in range(len(rms)):
+                    for j in range(total):
                         line.append('%s' % (u.s(rms[j])))
                     line.append('\n')
 
@@ -189,11 +154,11 @@ class Simulations:
     def __init__(self, patterns):
         self.patterns = patterns
 
-    def multiProcessSimulation(self, const, radical, path):
+    def multiProcessSimulation(self, const, algos, radical, path):
         m = Manager()
         loock = m.Lock()
         pool = ProcessPoolExecutor()
-        futures = [pool.submit(testar, patterns, const, radical, path, occupancy, loock) for occupancy in occupancies]
+        futures = [pool.submit(testar, patterns, const, algos, radical, path, occupancy, loock) for occupancy in occupancies]
         for future in futures:
             future.result()
         return self.const
@@ -201,16 +166,19 @@ class Simulations:
 if __name__ == '__main__':
     startedAll = datetime.datetime.now()
     u = Utiliters()
-    occupancies = [1, 5, 10, 20, 30, 40, 50, 60, 90]
-    # occupancies = [5, 10, 20, 30, 40, 50, 60, 90]
     print('Start Simulations at ' + startedAll.strftime("%H:%M:%S %d/%m/%Y"))
-    const = {'sG': 5, 'eG': 11, 'sQ': 5, 'eQ': 17, 'sL': -20, 'eL': 21, 'sM': 0, 'eM': 4}
+    occupancies = [1, 5, 10, 20, 30, 40, 50, 60, 90]
+    # algos = ['GD', 'GDi', 'GDP', 'GDPi', 'SSF', 'SSFls', 'SSFlsc', 'SSFi', 'SSFlsi', 'SSFlsci', 'PCDi', 'PCD']
+    # const = {'sG': 5, 'eG': 11, 'sQ': 5, 'eQ': 17, 'sL': -20, 'eL': 21, 'sM': 0, 'eM': 4}
+    # occupancies = [30]
+    algos = ['SSFi', 'SSFlsc']
+    const = {'sG': 5, 'eG': 11, 'sQ': 5, 'eQ': 17, 'sL': 0, 'eL': 1, 'sM': 2, 'eM': 3}
     patterns = ['48b7e']
     #patterns = ['48b7e', '8b4e']
     path = './../tests/signals/'
     simulations = Simulations(patterns)
     timestr = time.strftime("%Y%m%d-%H%M%S")
-    radical = './../results/testQuant_' + timestr + '_'
+    radical = './../results/testCompare_' + timestr + '_'
 
     open(radical + 'info.log', 'w').close()
     open(radical + 'erro.log', 'w').close()
@@ -218,7 +186,7 @@ if __name__ == '__main__':
     erro = u.setup_logger('', radical + 'erro.log', logging.WARNING)
     info.info('Start Quantization generation')
     try:
-        simulations.multiProcessSimulation(const, radical, path)
+        simulations.multiProcessSimulation(const, algos, radical, path)
     except:
         erro.exception('Logging a caught exception')
 

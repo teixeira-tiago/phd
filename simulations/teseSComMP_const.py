@@ -21,8 +21,8 @@ def testar(patterns, radical, path, occupancy, lock):
     u = Utiliters()
     info = u.setup_logger('information', radical + 'info.log')
     startedI = datetime.datetime.now()
-    print('Started MU generate for occupancy %d at  %s' % (occupancy, startedI.strftime("%H:%M:%S %d/%m/%Y")))
-    info.info('Started MU generate for occupancy %d' % (occupancy))
+    print('Started Const generate for occupancy %d at  %s' % (occupancy, startedI.strftime("%H:%M:%S %d/%m/%Y")))
+    info.info('Started Const generate for occupancy %d' % (occupancy))
     matrizes = Matrizes()
     algo = Algorithms()
     gerador = Signal()
@@ -52,8 +52,6 @@ def testar(patterns, radical, path, occupancy, lock):
         H, A, B = matrizes.generate(b)
         matrix = matrizes.matrix()
         h = matrix[0:7, 5]
-        constPCD = u.getPcdConst(A)
-        constTAS = u.getTasConst()
         nome = radical + pattern + '_' + str(occupancy)
         try:
             signalT = np.genfromtxt(path + 'signalT_' + pattern + '_' + str(occupancy) + '.csv', delimiter=',')
@@ -63,14 +61,25 @@ def testar(patterns, radical, path, occupancy, lock):
             signalT, signalN, signalTf, signalNf = u.sgen(pattern, samples, b, fillAd, fillAe, matrix, path)
 
         started = datetime.datetime.now()
-        print('Started MU generate for Shrinkage with occupancy %d at  %s' % (
+        print('Started Const generate for Shrinkage with occupancy %d at  %s' % (
             occupancy, started.strftime("%H:%M:%S %d/%m/%Y")))
-        info.info('Started MU generate for Shrinkage with occupancy %d' % (occupancy))
+        info.info('Started Const generate for Shrinkage with occupancy %d' % (occupancy))
 
-        for ite in range(1, it):
-            musL = []
+        itens = np.arange(0)
+        constantes = {}
+        for i in range(1, 101):
+            for j in range(1, 101):
+                if i != j:
+                    aux = i / j
+                    if not (aux in itens):
+                        itens = np.append(itens, aux)
+                        constantes.update({aux: str(i) + '#' + str(j)})
+        with open(nome + '.csv', 'w') as file:
+            file.write('Const,i,j,SSFlsc:RMS:'+str(occupancy)+',SSFlsci:RMS:'+str(occupancy)+'\n')
+        for const in itens:
+            signalTAS = np.zeros(window * samples)
+            signalTASi = np.zeros(window * samples)
             for its in range(samples):
-                mus = ''
                 step = (its * window)
                 paso = step + window
                 if (e > 6):
@@ -83,71 +92,29 @@ def testar(patterns, radical, path, occupancy, lock):
                 Bs = B.dot(signalS)
                 Hs = H.T.dot(signalS)
 
-                # x = xAll
-                # y = Bs
-                # muX, muY = 0.0, 0.0
-                # muXa, muYa = 0.0, 0.0
-                # for i in range(ite):
-                #     x, muX = algo.GD(x, Hs, A, returnMu=True)
-                #     y, muY = algo.GD(y, Hs, A, returnMu=True)
-                #     muXa += muX
-                #     muYa += muY
-                # mus += '%.6f,%.6f,' % (muXa / ite, muYa / ite)
-
                 x = xAll
                 y = Bs
-                muX, muY = 0.0, 0.0
-                muXa, muYa = 0.0, 0.0
-                for i in range(ite):
-                    x, muX = algo.SSF(x, Hs, A, returnMu=True)
-                    y, muY = algo.SSF(y, Hs, A, returnMu=True)
-                    muXa += muX
-                    muYa += muY
-                # mus += '%.6f,%.6f,' % (muXa / ite, muYa / ite)
-
-                # x = xAll
-                # y = Bs
-                # muX, muY = 0.0, 0.0
-                # muXa, muYa = 0.0, 0.0
-                # for i in range(ite):
-                #     x, muX = algo.PCD(x, Hs, A, returnMu=True, nu=constPCD)
-                #     y, muY = algo.PCD(y, Hs, A, returnMu=True, nu=constPCD)
-                #     muXa += muX
-                #     muYa += muY
-                # mus += '%.6f,%.6f,' % (muXa / ite, muYa / ite)
-                #
-                # x = xAll
-                # y = Bs
-                # muX, muY = 0.0, 0.0
-                # muXa, muYa = 0.0, 0.0
-                # for i in range(ite):
-                #     x, muX = algo.TAS(x, Hs, A, returnMu=True, nu=constTAS)
-                #     y, muY = algo.TAS(y, Hs, A, returnMu=True, nu=constTAS)
-                #     muXa += muX
-                #     muYa += muY
-                mus += '%.6f,%.6f' % (muXa / ite, muYa / ite)
-
-                musL.append([float(s) for s in mus.split(',')])
-            res = panda.DataFrame(musL, columns=['SSF:mu:'+str(occupancy)+':'+str(ite), 'SSFi:mu:'+str(occupancy)+':'+str(ite)])#,
-                                                 # 'GD:mu:'+str(occupancy)+':'+str(ite), 'GDi:mu:'+str(occupancy)+':'+str(ite),
-                                                 # 'PCD:mu:'+str(occupancy)+':'+str(ite), 'PCDi:mu:'+str(occupancy)+':'+str(ite),
-                                                 # 'TAS:mu:'+str(occupancy)+':'+str(ite), 'TASi:mu:'+str(occupancy)+':'+str(ite)])
-            if ite > 1:
-                data = panda.concat([data, res], axis=1, sort=False)
-            else:
-                data = res
+                for ite in range(it):
+                    x = algo.TAS(x, Hs, A, mud=0.25, nu=const)
+                    y = algo.TAS(y, Hs, A, mud=0.25, nu=const)
+                x = np.where(x < 0, 0, x)
+                y = np.where(y < 0, 0, y)
+                signalTAS[step:paso] = x
+                signalTASi[step:paso] = y
+            i, j = constantes.get(const).split('#')
+            line = '%.6f,%d,%d,%.6f,%.6f\n' % (const, int(i), int(j), gerador.rms(signalTAS - signalT), gerador.rms(signalTASi - signalT))
             with lock:
-                data.to_csv(nome + '.csv', index=False)
-
+                with open(nome + '.csv', 'a') as file:
+                    file.write(line)
 
         ended = datetime.datetime.now()
-        print('Ended MU generate for Shrinkage with occupancy %d at  %s after %s' % (
+        print('Ended Const generate for Shrinkage with occupancy %d at  %s after %s' % (
             occupancy, ended.strftime("%H:%M:%S %d/%m/%Y"), u.totalTime(started)))
-        info.info('Ended MU generate for Shrinkage with occupancy %d after %s' % (occupancy, u.totalTime(started)))
+        info.info('Ended Const generate for Shrinkage with occupancy %d after %s' % (occupancy, u.totalTime(started)))
     ended = datetime.datetime.now()
-    print('Ended MU generate for occupancy %d at  %s after %s' % (
+    print('Ended Const generate for occupancy %d at  %s after %s' % (
         occupancy, ended.strftime("%H:%M:%S %d/%m/%Y"), u.totalTime(startedI)))
-    info.info('Ended MU generate for occupancy %d after %s' % (occupancy, u.totalTime(startedI)))
+    info.info('Ended Const generate for occupancy %d after %s' % (occupancy, u.totalTime(startedI)))
 
 
 class Simulations:
@@ -165,7 +132,7 @@ class Simulations:
 
 if __name__ == '__main__':
     startedAll = datetime.datetime.now()
-    print('Start MU generation at ' + startedAll.strftime("%H:%M:%S %d/%m/%Y"))
+    print('Start Const generation at ' + startedAll.strftime("%H:%M:%S %d/%m/%Y"))
     u = Utiliters()
     occupancies = [1, 5, 10, 20, 30, 40, 50, 60, 90]
 
@@ -176,18 +143,18 @@ if __name__ == '__main__':
     path = './../tests/signals/'
     simulations = Simulations(patterns)
     timestr = time.strftime("%Y%m%d-%H%M%S")
-    radical = './../results/testMU_' + timestr + '_'
+    radical = './../results/testConst_' + timestr + '_'
 
     open(radical + 'info.log', 'w').close()
     open(radical + 'erro.log', 'w').close()
     info = u.setup_logger('information', radical + 'info.log')
     erro = u.setup_logger('', radical + 'erro.log', logging.WARNING)
-    info.info('Start MU generation')
+    info.info('Start Const generation')
     try:
         simulations.multiProcessSimulation(radical, path)
     except:
         erro.exception('Logging a caught exception')
 
     endedQuantization = datetime.datetime.now()
-    print('Ended MU Simulation at %s after %s\n' % (endedQuantization.strftime("%H:%M:%S %d/%m/%Y"), u.totalTime(startedAll)))
-    info.info('Ended MU Simulation after %s' % (u.totalTime(startedAll)))
+    print('Ended Const Simulation at %s after %s\n' % (endedQuantization.strftime("%H:%M:%S %d/%m/%Y"), u.totalTime(startedAll)))
+    info.info('Ended Cont Simulation after %s' % (u.totalTime(startedAll)))

@@ -1,9 +1,15 @@
 # -*- coding: utf-8 -*-
 from subprocess import check_output
-from src.utiliters.algorithms import Algorithms
-from src.utiliters.matrizes import Matrizes
-from src.utiliters.mathLaboratory import Signal
-from src.utiliters.util import Utiliters
+try:
+    from src.utiliters.algorithms import Algorithms
+    from src.utiliters.matrizes import Matrizes
+    from src.utiliters.mathLaboratory import Signal
+    from src.utiliters.util import Utiliters
+except ModuleNotFoundError:
+    from utiliters.algorithms import Algorithms
+    from utiliters.matrizes import Matrizes
+    from utiliters.mathLaboratory import Signal
+    from utiliters.util import Utiliters
 import numpy as np
 import collections
 import functools
@@ -92,22 +98,22 @@ class Verilog:
         line = ['']
         const = ''
         if (args[5] == 'GD'):
-            line.append('// Gradiente Descendente - GD\n\n')
+            line.append('// Gradiente Descendente - GD\n// With Pseudo-Inverse\n\n')
         elif (args[5] == 'GDP'):
-            line.append('// Gradiente Descendente Positivo - GDP\n\n')
+            line.append('// Gradiente Descendente Positivo - GDP\n// With Pseudo-Inverse\n\n')
         elif (args[5] == 'SSF'):
-            line.append('// Separable Surrogate Functionals - SSF\n\n')
+            line.append('// Separable Surrogate Functionals - SSF\n// With Pseudo-Inverse\n\n')
         elif (args[5] == 'PCD'):
-            line.append('// Parallel-Coordinate-Descent - PCD\n\n')
+            line.append('// Parallel-Coordinate-Descent - PCD\n// With Pseudo-Inverse\n\n')
             const = ' | Constant: ' + str(args[8])
         elif (args[5] == 'TAS'):
-            line.append('// Teixeira Andrade Shrinkage - TAS\n\n')
+            line.append('// Teixeira Andrade Shrinkage - TAS\n// With Pseudo-Inverse\n\n')
             const = ' | Constant: ' + str(args[8])
 
-        line.append('//Pattern: ' + args[0] + ' | Iterations: ' + str(int(args[3])) + ' | Quant.: ' + str(
+        line.append('// Pattern: ' + args[0] + ' | Iterations: ' + str(int(args[3])) + ' | Quant.: ' + str(
             int(args[2])-1) + ' | Gain: ' + str(int(args[4]))+'\n')
         line.append(
-            '//Mu: ' + str(1 / math.pow(2, int(args[6]))) + ' | Lambda: ' + str(args[7]) + const +'\n\n')
+            '// Mu: ' + str(1 / math.pow(2, int(args[6]))) + ' | Lambda: ' + str(args[7]) + const +'\n\n')
         line.append('module main\n#(\n')
         line.append('\tparameter totalITR = ' + str(math.ceil(args[3] / window)) + ',\n')
         line.append('\tparameter bits = ' + str(int(args[1]) + int(args[4])) + ',\n')
@@ -213,15 +219,21 @@ class Verilog:
         line = ['']
         paramB, lineB = self.rBs([b]+args[-4:])
         line.append('module shift_sipo\n#(\n')
-        line.append('\tparameter bits = ' + str(args[1]+args[8]) + ',\n\tparameter gain = ' + str(args[8]) + ',\n\tparameter align = '+str(args[6]-args[8]-4)+',\n\tparameter fit = '+str(args[6]-args[8]-14)+',\n')
+        line.append('\tparameter bits = ' + str(args[1]+args[8]) + ',\n\tparameter gain = ' + str(args[8]) + ',\n\tparameter align = '+str(args[6]-args[8]-1)+',\n') #\tparameter fit = '+str(args[6]-args[8]-14)+',\n')
         line.extend(paramB)
         aux = ''
-        for i in range(len(coef)):
+        for i in range(len(coef)-1):
             tmp = int(round(coef[i] * math.pow(2, bH - 1)))
             tmp = tmp-1 if tmp == math.pow(2, bH - 1) else tmp
             if (tmp > 0):
                 aux += '\tparameter signed [' + util.sstr(bH) + ':0] h' + util.sstr(i, '0') + ' =  ' + str(
-                    bH + 1) + '\'d' + str(tmp) + ', // '+str(coef[i])+'\n'
+                    bH + 1) + '\'d' + str(tmp) + ',\t// '+str(coef[i])+'\n'
+        i = len(coef)-1
+        tmp = int(round(coef[i] * math.pow(2, bH - 1)))
+        tmp = tmp - 1 if tmp == math.pow(2, bH - 1) else tmp
+        if (tmp > 0):
+            aux += '\tparameter signed [' + util.sstr(bH) + ':0] h' + util.sstr(i, '0') + ' =  ' + str(
+                bH + 1) + '\'d' + str(tmp) + ' \t// ' + str(coef[i]) + '\n'
         line.append(aux[:-2] + '\n)\n(\n')
         line.append('\tinput                clk,\n')
         line.append('\tinput  signed [' + str(args[1]) + ':0] x,\n')
@@ -267,9 +279,7 @@ class Verilog:
         else:
             start = 0
             ended = bwindow
-        line.append('\tassign outBs00 = s[' + util.sstr(int(e/2 + start)) + '] << gain;\n')
         line.extend(lineB)
-        line.append('\tassign outBs' + util.sstr(b-1, '0') + ' = s[' + util.sstr(int(ended - e/2)) + '] << gain;\n')
 
         for i in range(b):
             aux = ''
@@ -310,51 +320,54 @@ class Verilog:
 
     def rBs(self, args):
         line = ['']
-        lineM = ['']
         b = args[0]
         f = b + 6
         B = args[1]
         bB = args[2]
         coefB = args[3]
         coef = []
+        precision = '{:.20f}'
         for v in coefB:
-            coef.append(np.float('{:.10f}'.format(v)))
+            coef.append(np.float(precision.format(v)))
         tmp, tmp2 = {}, {}
-        tmpM, tmpM2 = {}, {}
-        tmpC, tmpC2 = {}, {}
-        tmpP, tmpP2 = {}, {}
         aux = ''
         parameters = ['']
         for i in range(len(coef)):
             tmp = int(round(coef[i] * math.pow(2, bB - 1)))
             tmp = tmp - 1 if tmp == math.pow(2, bB - 1) else tmp
             if (tmp > 0):
-                aux += '\tparameter signed [' + util.sstr(bB) + ':0] b' + util.sstr(i, '0') + ' =  ' + str(
-                    bB + 1) + '\'d' + str(tmp) + ', // '+str(coef[i])+'\n'
+                aux += '\tparameter signed [' + util.sstr(bB+2) + ':0] b' + util.sstr(i, '0') + ' =  ' + str(
+                    bB + 3) + '\'d' + str(tmp) + ', // '+str(coef[i])+'\n'
             else:
-                aux += '\tparameter signed [' + util.sstr(bB) + ':0] b' + util.sstr(i, '0') + ' = -' + str(
-                    bB + 1) + '\'d' + str(abs(tmp)) + ', // '+str(coef[i])+'\n'
+                aux += '\tparameter signed [' + util.sstr(bB+2) + ':0] b' + util.sstr(i, '0') + ' = -' + str(
+                    bB + 3) + '\'d' + str(abs(tmp)) + ', // '+str(coef[i])+'\n'
         parameters.append(aux)
         aux, aux2, aux3, aux4 = '', '', '', ''
         tmp, tmp2 = {}, {}
+        C = np.ones(B.shape)
+        D = B.dot(C.T)
+        E = D[:, 0]
+        B_opt = []
+        # kkk = []
+        # s = [0., 0., 0., 0., 1., 2., 21., 61., 42., 13., 7., 54.,  132., 76., 22., 15., 31., 37., 22., 9., 50.,  116., 75., 47., 63., 42., 35., 18., 6., 15., 44., 42., 20., 6., 2., 21., 51., 31., 8., 3., -2., 0., 0., -1., -1., 12., 36., 36., 16., 7., 0., -1., -1., 0.]
         for i in range(b):
+            aux, aux2, aux3 = '', 0, ''
             for j in range(f):
-                if (abs(B[i][j]) > 0.0) and (abs(math.ceil(B[i][j] * math.pow(2, bB - 1)) - 1) > 0):
-                    tmp2['s[' + util.sstr(j)+']'] = 'b' + util.sstr(coef.index(np.float('{:.10f}'.format(B[i][j]))), '0')
-                    tmpM2['in(' + str(j + 1) + ')'] = 'b(' + str(coef.index(np.float('{:.10f}'.format(B[i][j]))) + 1) + ')'
-                    tmpC2['in(' + str(j) + ')'] = 'b(' + str(coef.index(np.float('{:.10f}'.format(B[i][j])))) + ')'
-                    tmpP2['inp[' + str(j) + ']'] = 'b[' + str(coef.index(np.float('{:.10f}'.format(B[i][j])))) + ']'
+                if (B[i][j] != 0.0) and (int(round(B[i][j] * math.pow(2, bB - 1)) != 0)):
+                    tmp2['s[' + util.sstr(j)+']'] = 'b' + util.sstr(coef.index(np.float(precision.format(B[i][j]))), '0')
+                    # aux += '(s[' + util.sstr(j)+'] * b' + util.sstr(coef.index(np.float(precision.format(B[i][j]))), '0') + ') + '
+                    # aux2 += s[j] * B[i][j]
+                    # aux3 += str(s[j]) + ' * ' + str(round(B[i][j], 5))+'('+ util.sstr(coef.index(np.float(precision.format(B[i][j]))), '0') + ') + '
             tmp[i] = tmp2
-            tmpM[i] = tmpM2
-            tmpC[i] = tmpC2
-            tmpP[i] = tmpP2
             tmp2 = {}
-            tmpM2 = {}
-            tmpC2 = {}
-            tmpP2 = {}
-        B_opt = ['']
+            # if aux:
+            #     B_opt.append(aux[:-3])
+            #     print(round(aux2, 5), '\t', aux3[:-3])
+            #     kkk.append(aux2)
+
+
         for i in tmp:
-            for j in range(len(coef)*2):
+            for j in range(len(coef)*10):
                 aux2 = 'b' + util.sstr(j, '0')
                 aux = [k for k, v in tmp[i].items() if str(v) == (aux2)]
                 if (len(aux) > 0):
@@ -365,83 +378,31 @@ class Verilog:
                         aux2 += aux3[:-3] + ')) + '
                         aux3 = ''
                     else:
-                        aux2 = '(' + aux2 + ' * (' + aux[0] + ' << fit)) + '
+                        aux2 = '(' + aux2 + ' * ' + aux[0] + ') + '
                     aux4 += aux2
             if (len(aux4) > 2):
                 B_opt.append(aux4[:-3])
             aux2, aux4 = '', ''
-        auxM, auxM2, auxM3, auxM4 = '', '', '', ''
-        BM_opt = ['']
-        for i in tmpM:
-            for j in range(len(coef)*2):
-                auxM2 = 'b(' + str(j + 1) + ')'
-                auxM = [k for k, v in tmpM[i].items() if str(v) == (auxM2)]
-                if (len(auxM) > 0):
-                    if (len(auxM) > 1):
-                        auxM2 = '(' + auxM2 + ' * ('
-                        for k in range(len(auxM)):
-                            auxM3 += str(auxM[k]) + ' + '
-                        auxM2 += auxM3[:-3] + ')) + '
-                        auxM3 = ''
-                    else:
-                        auxM2 = '(' + auxM2 + ' * ' + auxM[0] + ') + '
-                    auxM4 += auxM2
-            if (len(auxM4) > 3):
-                BM_opt.append(auxM4[:-3])
-            auxM2, auxM4 = '', ''
-        auxC, auxC2, auxC3, auxC4 = '', '', '', ''
-        BC_opt = ['']
-        for i in tmpC:
-            for j in range(len(coef)*2):
-                auxC2 = 'b(' + str(j) + ')'
-                auxC = [k for k, v in tmpC[i].items() if str(v) == (auxC2)]
-                if (len(auxC) > 0):
-                    if (len(auxC) > 1):
-                        auxC2 = '(' + auxC2 + ' * ('
-                        for k in range(len(auxC)):
-                            auxC3 += str(auxC[k]) + ' + '
-                        auxC2 += auxC3[:-3] + ')) + '
-                        auxC3 = ''
-                    else:
-                        auxC2 = '(' + auxC2 + ' * ' + auxC[0] + ') + '
-                    auxC4 += auxC2
-            if (len(auxC4) > 3):
-                BC_opt.append(auxC4[:-3])
-            auxC2, auxC4 = '', ''
-        auxP, auxP2, auxP3, auxP4 = '', '', '', ''
-        BP_opt = ['']
-        for i in tmpP:
-            for j in range(len(coef)*2):
-                auxP2 = 'b[' + str(j) + ']'
-                auxP = [k for k, v in tmpP[i].items() if str(v) == (auxP2)]
-                if (len(auxP) > 0):
-                    if (len(auxP) > 1):
-                        auxP2 = '(' + auxP2 + ' * ('
-                        for k in range(len(auxP)):
-                            auxP3 += str(auxP[k]) + ' + '
-                        auxP2 += auxP3[:-3] + ')) + '
-                        auxP3 = ''
-                    else:
-                        auxP2 = '(' + auxP2 + ' * ' + auxP[0] + ') + '
-                    auxP4 += auxP2
-            if (len(auxP4) > 3):
-                BP_opt.append(auxP4[:-3])
-            auxP2, auxP4 = '', ''
 
-        for cont in range(1, b-1):
-            line.append('\tassign outBs' + util.sstr(cont, '0') + ' = (' + B_opt[cont] + ') >>> align;\n')
-            # line.append('\t\trBs[' + util.sstr(cont) + '] <= (' + B_opt[cont] + ') >>> align;\n')
-            lineM.append('%\tBs(' + str(cont + 1) + ') = ' + BM_opt[cont] + ';\n')
-            lineM.append('//\tBs(' + str(cont) + ') = ' + BC_opt[cont] + ';\n')
-            lineM.append('#    Bs[' + str(cont) + '] = ' + BP_opt[cont] + '\n')
-
-        #line.append('\n')
-        lineM.append('\n')
+        line.append('\twire [100:0] Bs [47:0];\n\n')
+        cont = 0
+        for idx in range(E.size):
+            if E[idx] == 0:
+                line.append('\tassign Bs[' + util.sstr(idx, ' ') + '] = 0;\n')
+            else:
+                if cont >= len(B_opt):
+                    line.append('\tassign Bs[' + util.sstr(idx, ' ') + '] = 0;\n')
+                else:
+                    line.append('\tassign Bs[' + util.sstr(idx, ' ') + '] = ' + B_opt[cont] + ';\n')
+                    cont = cont +1
+        line.append('\n')
+        for idx in range(E.size):
+            line.append('\tassign outBs' + util.sstr(idx, '0') + ' = Bs[' + util.sstr(idx, ' ') + '] >>> align;\n')
+        line.append('\n')
         return parameters, line
 
     def ax(self, args):
         line = ['']
-        lineM = ['']
         b = args[0]
         A = args[1]
         bA = args[2]
@@ -450,25 +411,13 @@ class Verilog:
         for v in coefA:
             coef.append(np.float('{:.10f}'.format(v)))
         tmp, tmp2 = {}, {}
-        tmpM, tmpM2 = {}, {}
-        tmpC, tmpC2 = {}, {}
-        tmpP, tmpP2 = {}, {}
         aux, aux2, aux3, aux4 = '', '', '', ''
         for i in range(b):
             for j in range(b):
                 if (A[i][j] > 0.0) and ((math.ceil(A[i][j] * math.pow(2, bA - 1)) - 1) > 0):
                     tmp2['in' + util.sstr(j, '0')] = 'a' + util.sstr(coef.index(np.float('{:.10f}'.format(A[i][j]))), '0')
-                    tmpM2['in(' + str(j + 1) + ')'] = 'a(' + str(coef.index(np.float('{:.10f}'.format(A[i][j]))) + 1) + ')'
-                    tmpC2['in(' + str(j) + ')'] = 'a(' + str(coef.index(np.float('{:.10f}'.format(A[i][j])))) + ')'
-                    tmpP2['inp[' + str(j) + ']'] = 'a[' + str(coef.index(np.float('{:.10f}'.format(A[i][j])))) + ']'
             tmp[i] = tmp2
-            tmpM[i] = tmpM2
-            tmpC[i] = tmpC2
-            tmpP[i] = tmpP2
             tmp2 = {}
-            tmpM2 = {}
-            tmpC2 = {}
-            tmpP2 = {}
 
         A_opt = ['']
         for i in tmp:
@@ -489,80 +438,15 @@ class Verilog:
             if (len(aux4) > 2):
                 A_opt.append(aux4[:-3])
             aux2, aux4 = '', ''
-        auxM, auxM2, auxM3, auxM4 = '', '', '', ''
-        AM_opt = ['']
-        for i in tmpM:
-            for j in range(b):
-                auxM2 = 'a(' + str(j + 1) + ')'
-                auxM = [k for k, v in tmpM[i].items() if str(v) == (auxM2)]
-                if (len(auxM) > 0):
-                    if (len(auxM) > 1):
-                        auxM2 = '(' + auxM2 + ' * ('
-                        for k in range(len(auxM)):
-                            auxM3 += str(auxM[k]) + ' + '
-                        auxM2 += auxM3[:-3] + ')) + '
-                        auxM3 = ''
-                    else:
-                        auxM2 = '(' + auxM2 + ' * ' + auxM[0] + ') + '
-                    auxM4 += auxM2
-            if (len(auxM4) > 3):
-                AM_opt.append(auxM4[:-3])
-            auxM2, auxM4 = '', ''
-        auxC, auxC2, auxC3, auxC4 = '', '', '', ''
-        AC_opt = ['']
-        for i in tmpC:
-            for j in range(b):
-                auxC2 = 'a(' + str(j) + ')'
-                auxC = [k for k, v in tmpC[i].items() if str(v) == (auxC2)]
-                if (len(auxC) > 0):
-                    if (len(auxC) > 1):
-                        auxC2 = '(' + auxC2 + ' * ('
-                        for k in range(len(auxC)):
-                            auxC3 += str(auxC[k]) + ' + '
-                        auxC2 += auxC3[:-3] + ')) + '
-                        auxC3 = ''
-                    else:
-                        auxC2 = '(' + auxC2 + ' * ' + auxC[0] + ') + '
-                    auxC4 += auxC2
-            if (len(auxC4) > 3):
-                AC_opt.append(auxC4[:-3])
-            auxC2, auxC4 = '', ''
-        auxP, auxP2, auxP3, auxP4 = '', '', '', ''
-        AP_opt = ['']
-        for i in tmpP:
-            for j in range(b):
-                auxP2 = 'a[' + str(j) + ']'
-                auxP = [k for k, v in tmpP[i].items() if str(v) == (auxP2)]
-                if (len(auxP) > 0):
-                    if (len(auxP) > 1):
-                        auxP2 = '(' + auxP2 + ' * ('
-                        for k in range(len(auxP)):
-                            auxP3 += str(auxP[k]) + ' + '
-                        auxP2 += auxP3[:-3] + ')) + '
-                        auxP3 = ''
-                    else:
-                        auxP2 = '(' + auxP2 + ' * ' + auxP[0] + ') + '
-                    auxP4 += auxP2
-            if (len(auxP4) > 3):
-                AP_opt.append(auxP4[:-3])
-            auxP2, auxP4 = '', ''
+
         for cont in range(b):
             line.append('\tassign Ax[' + util.sstr(cont) + '] = ' + A_opt[cont + 1] + ';\n')
-            lineM.append('%\tAx(' + str(cont + 1) + ') = ' + AM_opt[cont + 1] + ';\n')
-            lineM.append('//\tAx(' + str(cont) + ') = ' + AC_opt[cont + 1] + ';\n')
-            lineM.append('#    Ax[' + str(cont) + '] = ' + AP_opt[cont + 1] + '\n')
         line.append('\n')
-        lineM.append('\n')
         for cont in range(b):
             line.append('\tassign B[' + util.sstr(cont) + '] = (hr' + util.sstr(cont, '0') + ' << (bits - 5)) - Ax[' + util.sstr(
                 cont) + '];\n')
-            lineM.append('%\tB(' + str(cont + 1) + ') = (hr(' + str(cont + 1) + ') * (2 ^ (bits - 5))) - Ax(' + str(
-                cont + 1) + ');\n')
-            lineM.append('//\tB(' + str(cont) + ') = (hr(' + str(cont) + ') * pow(2, (bits - 5))) - Ax(' + str(cont) + ');\n')
-            lineM.append('#    B[' + str(cont) + '] = (hr[' + str(cont) + '] * pow(2, (bits - 5))) - Ax[' + str(cont) + ']\n')
         line.append('\n')
-        lineM.append('\n')
-        return [line, lineM]
+        return line
 
     def gdp(self, args):
         bunch = args[0].rsplit('b', 1)
@@ -670,43 +554,15 @@ class Verilog:
         line.append('\twire signed [64:0]   Ax [' + util.sstr(b - 1) + ':0];\n')
         line.append('\twire signed [64:0]    B [' + util.sstr(b - 1) + ':0];\n')
         line.append('\twire signed [64:0]   xB [' + util.sstr(b - 1) + ':0];\n\n')
-        lineM = [
-            '%function [out] = gd(hr, in, bits, a, align, mu)\n%\tAx = zeros(1, ' + str(b) + ');\n%\tB = zeros(1, ' + str(
-                b) + ');\n%\txB = zeros(1, ' + str(b) + ');\n\n']
-        lineM.append(
-            '//VectorXd gd(VectorXd hr, VectorXd in, int bits, VectorXd a, int align, double mu) {\n//\tVectorXd Ax(' + str(
-                b) + ');\n//\tVectorXd B(' + str(b) + ');\n//\tVectorXd xB(' + str(b) + ');\n//\tVectorXd out(' + str(
-                b) + ');\n\n')
-        lineM.append(
-            '#def gd(self, hr, inp, bits, a, align, mu):\n#    Ax = np.zeros(' + str(b) + ')\n#    B = np.zeros(' + str(
-                b) + ')\n#    xB = np.zeros(' + str(b) + ')\n#    out = np.zeros(' + str(b) + ')\n\n')
         ax = self.ax([b, A, bA, coefA])
-        line.extend(ax[0])
-        lineM.extend(ax[1])
+        line.extend(ax)
         for cont in range(b):
             line.append('\tassign xB[' + util.sstr(cont) + '] = (in' + util.sstr(cont, '0') + ' << align) + (B[' + util.sstr(
                 cont) + '] >>> ' + str(args[6]) + ');\n')
-            lineM.append('%\txB(' + str(cont + 1) + ') = (in(' + str(cont + 1) + ') * (2 ^ align)) + (B(' + str(
-                cont + 1) + ') * mu);\n')
-            lineM.append(
-                '//\txB(' + str(cont) + ') = (in(' + str(cont) + ') * pow(2, align)) + (B(' + str(cont) + ') * mu);\n')
-            lineM.append(
-                '#    xB[' + str(cont) + '] = (inp[' + str(cont) + '] * pow(2, align)) + (B[' + str(cont) + '] * mu)\n')
         line.append('\n')
-        lineM.append('\n')
         for cont in range(b):
             line.append('\tassign out' + util.sstr(cont, '0') + ' = xB[' + util.sstr(cont) + '] >>> align;\n')
-            lineM.append('%\tout(' + str(cont + 1) + ') = fix(xB(' + str(cont + 1) + ') / (2 ^ align));\n')
-            lineM.append('//\tout(' + str(cont) + ') = trunc(xB(' + str(cont) + ') / pow(2, align));\n')
-            lineM.append('#    out[' + str(cont) + '] = np.fix(xB[' + str(cont) + '] / pow(2, align))\n')
         line.append('\nendmodule\n')
-        lineM.append('%end\n')
-        lineM.append('//\treturn out;\n//}\n')
-        lineM.append('#    return out\n')
-        file = open('../results/gd.m', 'w')
-        for linha in lineM:
-            file.write(linha)
-        file.close()
         return line
 
     def ssf(self, args):
@@ -742,64 +598,23 @@ class Verilog:
         line.append('\twire signed [64:0]   Ax  [' + util.sstr(b - 1) + ':0];\n')
         line.append('\twire signed [64:0]    B  [' + util.sstr(b - 1) + ':0];\n')
         line.append('\twire signed [64:0]   xB  [' + util.sstr(b - 1) + ':0];\n\n')
-        lineM = ['%function [out] = ssf(hr, in, bits, a, align, gain, mu, lambda)\n%\ttmp = zeros(1, ' + str(
-            b) + ');\n%\tAx = zeros(1, ' + str(b) + ');\n%\tB = zeros(1, ' + str(b) + ');\n%\txB = zeros(1, ' + str(
-            b) + ');\n\n']
-        lineM.append(
-            '//VectorXd ssf(VectorXd hr, VectorXd in, int bits, VectorXd a, int align, int gain, double mu, double lambda) {\n//\tVectorXd tmp(' + str(
-                b) + ');\n//\tVectorXd Ax(' + str(b) + ');\n//\tVectorXd B(' + str(b) + ');\n//\tVectorXd xB(' + str(
-                b) + ');\n//\tVectorXd out(' + str(b) + ');\n\n')
-        lineM.append('#def ssf(self, hr, inp, bits, a, align, gain, mu, lamb):\n#    tmp = np.zeros(' + str(
-            b) + ')\n#    Ax = np.zeros(' + str(b) + ')\n#    B = np.zeros(' + str(b) + ')\n#    xB = np.zeros(' + str(
-            b) + ')\n#    out = np.zeros(' + str(b) + ')\n\n')
         ax = self.ax([b, A, bA, coefA])
-        line.extend(ax[0])
-        lineM.extend(ax[1])
+        line.extend(ax)
         for cont in range(b):
             line.append('\tassign xB[' + util.sstr(cont) + '] = (in' + util.sstr(cont, '0') + ' << align) + (B[' + util.sstr(
                 cont) + '] >>> ' + str(args[6]) + ');\n')
-            lineM.append('%\txB(' + str(cont + 1) + ') = (in(' + str(cont + 1) + ') * (2 ^ align)) + (B(' + str(
-                cont + 1) + ') * mu);\n')
-            lineM.append(
-                '//\txB(' + str(cont) + ') = (in(' + str(cont) + ') * pow(2, align)) + (B(' + str(cont) + ') * mu);\n')
-            lineM.append(
-                '#    xB[' + str(cont) + '] = (inp[' + str(cont) + '] * pow(2, align)) + (B[' + str(cont) + '] * mu)\n')
         line.append('\n')
-        lineM.append('\n')
         for cont in range(b):
             if (float(args[7]) > 0.0):
                 line.append('\tassign tmp[' + util.sstr(cont) + '] = (xB[' + util.sstr(
                     cont) + '] - (lambda << (align - gain-1))) >>> align;\n')
-                lineM.append('%\ttmp(' + str(cont + 1) + ') = fix((xB(' + str(
-                    cont + 1) + ') - (lambda * (2 ^ (align - gain-1)))) / (2 ^ align));\n')
-                lineM.append('//\ttmp(' + str(cont) + ') = trunc((xB(' + str(
-                    cont) + ') - (lambda * pow(2, (align - gain-1)))) / pow(2, align));\n')
-                lineM.append('#    tmp[' + str(cont) + '] = np.fix((xB[' + str(
-                    cont) + '] - (lamb * pow(2, (align - gain-1)))) / pow(2, align))\n')
             else:
                 line.append('\tassign tmp[' + util.sstr(cont) + '] = xB[' + util.sstr(cont) + '] >>> align;\n')
-                lineM.append('%\ttmp(' + str(cont + 1) + ') = fix(xB(' + str(cont + 1) + ') / (2 ^ align));\n')
-                lineM.append('//\ttmp(' + str(cont) + ') = trunc(xB(' + str(cont) + ') / pow(2, align));\n')
-                lineM.append('#    tmp[' + str(cont) + '] = np.fix(xB[' + str(cont) + '] / pow(2, align))\n')
         line.append('\n')
-        lineM.append('\n')
         for cont in range(b):
             line.append('\tassign out' + util.sstr(cont, '0') + ' =	tmp[' + util.sstr(cont) + '][bits] == 1 ? 0 : tmp[' + util.sstr(
                 cont) + '];\n')
-            lineM.append('%\tif (tmp(' + str(cont + 1) + ') > 0) out(' + str(cont + 1) + ') = tmp(' + str(
-                cont + 1) + '); else out(' + str(cont + 1) + ') = 0; end;\n')
-            lineM.append(
-                '//\tif (tmp(' + str(cont) + ') > 0) out(' + str(cont) + ') = tmp(' + str(cont) + '); else out(' + str(
-                    cont) + ') = 0;\n')
-            lineM.append('#    out[' + str(cont) + '] = tmp[' + str(cont) + '] if (tmp[' + str(cont) + '] > 0) else 0\n')
         line.append('\nendmodule\n')
-        lineM.append('%end\n')
-        lineM.append('//\treturn out;\n//}\n')
-        lineM.append('#    return out\n')
-        file = open('../results/ssf.m', 'w')
-        for linha in lineM:
-            file.write(linha)
-        file.close()
         return line
 
     def pcd(self, args):
@@ -840,444 +655,358 @@ class Verilog:
         line.append('\twire signed [64:0]   Ax  [' + util.sstr(b - 1) + ':0];\n')
         line.append('\twire signed [64:0]   aB  [' + util.sstr(b - 1) + ':0];\n')
         line.append('\twire signed [64:0]   xB  [' + util.sstr(b - 1) + ':0];\n')
-        line.append('\twire signed [64:0]    B  [' + util.sstr(b - 1) + ':0];\n')
-        line.append('\twire signed [64:0]   tmp [' + util.sstr(b - 1) + ':0];\n\n')
-        lineM = ['%function [out] = pcd(hr, in, bits, a, align, gain, mu, lambda, IW)\n%\taux = zeros(1, ' + str(
-            b) + ');\n%\tAx = zeros(1, ' + str(b) + ');\n%\taB = zeros(1, ' + str(b) + ');\n%\tB = zeros(1, ' + str(
-            b) + ');\n%\txB = zeros(1, ' + str(b) + ');\n%\ttmp = zeros(1, ' + str(b) + ');\n\n']
-        lineM.append(
-            '//VectorXd pcd(VectorXd hr, VectorXd in, int bits, VectorXd a, int align, int gain, double mu, double lambda, double IW)\n//\tVectorXd aux(' + str(
-                b) + ');\n//\tVectorXd Ax(' + str(b) + ');\n//\tVectorXd aB(' + str(b) + ');\n//\tVectorXd B(' + str(
-                b) + ');\n//\tVectorXd xB(' + str(b) + ');\n//\tVectorXd tmp(' + str(b) + ');\n//\tVectorXd out(' + str(
-                b) + ');\n\n')
-        lineM.append('#def pcd(self, hr, inp, bits, a, align, gain, mu, lamb, IW):\n#    aux = np.zeros(' + str(
-            b) + ')\n#    Ax = np.zeros(' + str(b) + ')\n#    aB = np.zeros(' + str(b) + ')\n#    B = np.zeros(' + str(
-            b) + ')\n#    xB = np.zeros(' + str(b) + ')\n#    tmp = np.zeros(' + str(
-            b) + ')\n#    out = np.zeros(' + str(b) + ')\n\n')
-        ax = self.ax([b, A, bA, coefA])
-        line.extend(ax[0])
-        lineM.extend(ax[1])
-        for cont in range(b):
-            line.append('\tassign aB[' + util.sstr(cont) + '] = B[' + util.sstr(cont) + '] * IW;\n')
-            lineM.append('%\taB(' + str(cont + 1) + ') = B(' + str(cont + 1) + ') * IW;\n')
-            lineM.append('//\taB(' + str(cont) + ') = B(' + str(cont) + ') * IW;\n')
-            lineM.append('#    aB[' + str(cont) + '] = B[' + str(cont) + '] * IW\n')
-        line.append('\n')
-        lineM.append('\n')
-        for cont in range(b):
-            if (float(args[7]) > 0.0):
-                line.append(
-                    '\tassign xB[' + util.sstr(cont) + '] = (((in' + util.sstr(cont, '0') + ' << (align + gain))) + aB[' + util.sstr(
-                        cont) + ']) - ((IW * lambda) << (align + gain-2));\n')
-                lineM.append(
-                    '%\txB(' + str(cont + 1) + ') = ((in(' + str(cont + 1) + ') * (2 ^ (align + gain))) + aB(' + str(
-                        cont + 1) + ')) - ((IW * lambda) * (2 ^ (align + gain-2)));\n')
-                lineM.append('//\txB(' + str(cont) + ') = ((in(' + str(cont) + ') * pow(2, (align + gain))) + aB(' + str(
-                    cont) + ')) - ((IW * lambda) * pow(2, (align + gain-2)));\n')
-                lineM.append('#    xB[' + str(cont) + '] = ((inp[' + str(cont) + '] * pow(2, (align + gain))) + aB[' + str(
-                    cont) + ']) - ((IW * lamb) * pow(2, (align + gain-2)))\n')
-            else:
-                line.append('\tassign xB[' + util.sstr(cont) + '] = (in' + util.sstr(cont, '0') + ' << (align + gain)) + aB[' + util.sstr(
-                    cont) + '];\n')
-                lineM.append(
-                    '%\txB(' + str(cont + 1) + ') = (in(' + str(cont + 1) + ') * (2 ^ (align + gain))) + aB(' + str(
-                        cont + 1) + ');\n')
-                lineM.append('//\txB(' + str(cont) + ') = (in(' + str(cont) + ') * pow(2, (align + gain))) + aB(' + str(
-                    cont) + ');\n')
-                lineM.append('#    xB[' + str(cont) + '] = (inp[' + str(cont) + '] * pow(2, (align + gain))) + aB[' + str(
-                    cont) + '];\n')
-        line.append('\n')
-        lineM.append('\n')
-        for cont in range(b):
-            line.append('\tassign tmp[' + util.sstr(cont) + '] = xB[' + util.sstr(cont) + '] >>> (align + gain);\n')
-            lineM.append('%\ttmp(' + str(cont + 1) + ') = fix(xB(' + str(cont + 1) + ') / (2 ^ (align + gain)));\n')
-            lineM.append('//\ttmp(' + str(cont) + ') = trunc(xB(' + str(cont) + ') / pow(2, (align + gain)));\n')
-            lineM.append('#    tmp[' + str(cont) + '] = np.fix(xB[' + str(cont) + '] / pow(2, (align + gain)))\n')
-        line.append('\n')
-        lineM.append('\n')
-        for cont in range(b):
-            line.append('\tassign aux[' + util.sstr(cont) + '] = tmp[' + util.sstr(cont) + '][bits] == 1 ? 0 : tmp[' + util.sstr(
-                cont) + '];\n')
-            lineM.append('%\tif (tmp(' + str(cont + 1) + ') > 0) aux(' + str(cont + 1) + ') = tmp(' + str(
-                cont + 1) + '); else aux(' + str(cont + 1) + ') = 0; end;\n')
-            lineM.append('//\tif (tmp(' + str(cont) + ') > 0) aux(' + str(cont) + ') = tmp(' + str(
-                cont) + '); else aux(' + str(cont) + ') = 0;\n')
-            lineM.append('#    aux[' + str(cont) + '] = tmp[' + str(cont) + '] if (tmp[' + str(cont) + '] > 0) else 0\n')
-        line.append('\n')
-        lineM.append('\n')
-        for cont in range(b):
-            line.append('\tassign out' + util.sstr(cont, '0') + ' =	in' + util.sstr(cont, '0') + ' + ((aux[' + util.sstr(
-                cont) + '] - in' + util.sstr(cont, '0') + ') >>> ' + str(args[6]) + ');\n')
-            lineM.append(
-                '%\tout(' + str(cont + 1) + ') = fix(in(' + str(cont + 1) + ') + ((aux(' + str(cont + 1) + ') - in(' + str(
-                    cont + 1) + ')) * mu));\n')
-            lineM.append(
-                '//\tout(' + str(cont) + ') = trunc(in(' + str(cont) + ') + ((aux(' + str(cont) + ') - in(' + str(
-                    cont) + ')) * mu));\n')
-            lineM.append(
-                '#    out[' + str(cont) + '] = np.fix(inp[' + str(cont) + '] + ((aux[' + str(cont) + '] - inp[' + str(
-                    cont) + ']) * mu))\n')
-        line.append('\nendmodule\n')
-        lineM.append('%end\n')
-        lineM.append('//\treturn out;\n//}\n')
-        lineM.append('#    return out')
-        file = open('../results/pcd.m', 'w')
-        for linha in lineM:
-            file.write(linha)
-        file.close()
-        return line
+import os
+import math
+import time
+import pprint
+import logging
+import filecmp
+import datetime
+from multiprocessing import Manager
+from concurrent.futures import ProcessPoolExecutor
+import collections
+import numpy as np
+import pandas as pd
+from subprocess import check_output
+try:
+    from src.utiliters.algorithmsVerilog import XbYe
+    from src.utiliters.algorithms import Algorithms
+    from src.utiliters.mathLaboratory import Signal
+    from src.simulations.verilogFullSimulationWithPI import Verilog
+    from src.utiliters.matrizes import Matrizes
+    from src.utiliters.util import Utiliters
+except ModuleNotFoundError:
+    from utiliters.algorithmsVerilog import XbYe
+    from utiliters.algorithms import Algorithms
+    from utiliters.mathLaboratory import Signal
+    from simulations.verilogFullSimulationWithPI import Verilog
+    from utiliters.matrizes import Matrizes
+    from utiliters.util import Utiliters
 
-    def tas(self, args):
-        bunch = args[0].rsplit('b', 1)
-        b = int(bunch[0])
-        A = args[3]
-        bA = args[4]
-        coefA = args[5]
-        gain = int(args[8])
-        auxC = float(args[9])
-        const = int(auxC) if auxC.is_integer() else int(np.round(auxC * math.pow(2, gain)))
-        line = ['']
-        line.append('module Algorithm // Teixeira Andrade Shrinkage\n#(\n')
-        tmp = 0
-        for cont in range(len(coefA)):
-            tmp = int(round(coefA[cont] * math.pow(2, bA - 1)))
-            tmp = tmp - 1 if tmp == math.pow(2, bA - 1) else tmp
-            if (tmp > 0):
-                line.append('\tparameter signed [' + util.sstr(bA) + ':0] a' + util.sstr(cont, '0') + ' = ' + str(
-                    bA + 1) + '\'d' + str(tmp) + ', // '+str(coefA[cont])+'\n')
-        line.append('\tparameter align = ' + str(bA - 1) + ',\n')
-        if (float(args[7]) > 0.0):
-            lambd = int(np.round(float(args[7]) * math.pow(2, gain)))
-            line.append('\tparameter lambda = ' + str(lambd) + ', // = ' + str(args[7]) + '*2^gain\n')
-        line.append('\tparameter t = ' + str(const) + ', // = ' + str(auxC) + '*2^gain\n')
-        line.append('\tparameter bits = 15,\n\tparameter gain = bits - ' + str(args[1]) + '\n)\n(\n')
-        for cont in range(b):
-            line.append('\tinput  signed [' + util.sstr(args[1] + args[2]) + ':0]    hr' + util.sstr(cont, '0') + ',\n')
-        for cont in range(b):
-            line.append('\tinput  signed [bits:0]  in' + util.sstr(cont, '0') + ',\n')
-        aux = ''
-        for cont in range(b):
-            aux += '\n\toutput signed [bits:0] out' + util.sstr(cont, '0') + ','
-        line.append(aux[1:-1] + '\n);\n\n')
-        line.append('\twire signed [bits:0] aux [' + util.sstr(b - 1) + ':0];\n')
-        line.append('\twire signed [64:0]   Ax  [' + util.sstr(b - 1) + ':0];\n')
-        line.append('\twire signed [64:0]   xB  [' + util.sstr(b - 1) + ':0];\n')
-        line.append('\twire signed [64:0]    B  [' + util.sstr(b - 1) + ':0];\n')
-        line.append('\twire signed [64:0]   tmp [' + util.sstr(b - 1) + ':0];\n\n')
-        lineM = ['%function [out] = tas(hr, in, bits, a, align, gain, mu, lambda, t)\n%\taux = zeros(1, ' + str(
-            b) + ');\n%\tAx = zeros(1, ' + str(b) + ');\n%\tB = zeros(1, ' + str(b) + ');\n%\txB = zeros(1, ' + str(
-            b) + ');\n%\ttmp = zeros(1, ' + str(b) + ');\n\n']
-        lineM.append(
-            '//VectorXd tas(VectorXd hr, VectorXd in, int bits, VectorXd a, int align, int gain, double mu, double lambda, double t)\n//\tVectorXd aux(' + str(
-                b) + ');\n//\tVectorXd Ax(' + str(b) + ');\n//\tVectorXd B(' + str(b) + ');\n//\tVectorXd xB(' + str(
-                b) + ');\n//\tVectorXd tmp(' + str(b) + ');\n//\tVectorXd out(' + str(b) + ');\n\n')
-        lineM.append('#def tas(self, hr, inp, bits, a, align, gain, mu, lamb, t):\n#    aux = np.zeros(' + str(
-            b) + ')\n#    Ax = np.zeros(' + str(b) + ')\n#    B = np.zeros(' + str(b) + ')\n#    xB = np.zeros(' + str(
-            b) + ')\n#    tmp = np.zeros(' + str(b) + ')\n#    out = np.zeros(' + str(b) + ')\n\n')
-        ax = self.ax([b, A, bA, coefA])
-        line.extend(ax[0])
-        lineM.extend(ax[1])
-        for cont in range(b):
-            line.append(
-                '\tassign xB[' + util.sstr(cont) + '] = (in' + util.sstr(cont, '0') + ' << align) + B[' + util.sstr(cont) + '];\n')
-            lineM.append(
-                '%\txB(' + str(cont + 1) + ') = (in(' + str(cont + 1) + ') * (2 ^ align)) + B(' + str(cont + 1) + ');\n')
-            lineM.append(
-                '//\txB(' + str(cont) + ') = (in(' + str(cont) + ') * pow(2, align)) + B(' + str(cont) + ');\n')
-            lineM.append(
-                '#    xB[' + str(cont) + '] = (inp[' + str(cont) + '] * pow(2, align)) + B[' + str(cont) + ']\n')
-        line.append('\n')
-        lineM.append('\n')
-        for cont in range(b):
-            if (float(args[7]) > 0.0):
-                line.append('\tassign tmp[' + util.sstr(cont) + '] = ((xB[' + util.sstr(
-                    cont) + '] * t) - ((t * lambda) << (align + gain-2))) >>> (align + gain);\n')
-                lineM.append('%\ttmp(' + str(cont + 1) + ') = fix(((xB(' + str(
-                    cont + 1) + ') * t) - ((t * lambda) * (2 ^ (align + gain-2)))) / (2 ^ (align + gain)));\n')
-                lineM.append('//\ttmp(' + str(cont) + ') = trunc(((xB(' + str(
-                    cont) + ') * t) - ((t * lambda) * pow(2, (align + gain-2)))) / pow(2, (align + gain)));\n')
-                lineM.append('#    tmp[' + str(cont) + '] = np.fix(((xB[' + str(
-                    cont) + '] * t) - ((t * lamb) * pow(2, (align + gain-2)))) / pow(2, (align + gain)))\n')
-            else:
-                line.append('\tassign tmp[' + util.sstr(cont) + '] = (xB[' + util.sstr(cont) + '] * t) >>> (align + gain);\n')
-                lineM.append(
-                    '%\ttmp(' + str(cont + 1) + ') = fix((xB(' + str(cont + 1) + ') * t) / (2 ^ (align + gain)));\n')
-                lineM.append('//\ttmp(' + str(cont) + ') = trunc((xB(' + str(cont) + ') * t) / pow(2, (align + gain)));\n')
-                lineM.append('#    tmp[' + str(cont) + '] = np.fix((xB[' + str(cont) + '] * t) / pow(2, (align + gain)))\n')
-        line.append('\n')
-        lineM.append('\n')
-        for cont in range(b):
-            line.append('\tassign aux[' + util.sstr(cont) + '] = tmp[' + util.sstr(cont) + '][bits] == 1 ? 0 : tmp[' + util.sstr(
-                cont) + '];\n')
-            lineM.append('%\tif (tmp(' + str(cont + 1) + ') > 0) aux(' + str(cont + 1) + ') = tmp(' + str(
-                cont + 1) + '); else aux(' + str(cont + 1) + ') = 0; end;\n')
-            lineM.append(
-                '//\tif (tmp(' + str(cont) + ') > 0) aux(' + str(cont) + ') = tmp(' + str(cont) + '); else aux(' + str(
-                    cont) + ') = 0;\n')
-            lineM.append('#    aux[' + str(cont) + '] = tmp[' + str(cont) + '] if (tmp[' + str(cont) + '] > 0) else 0\n')
-        line.append('\n')
-        lineM.append('\n')
-        for cont in range(b):
-            line.append('\tassign out' + util.sstr(cont, '0') + ' =	in' + util.sstr(cont, '0') + ' + ((aux[' + util.sstr(
-                cont) + '] - in' + util.sstr(cont, '0') + ') >>> ' + str(args[6]) + ');\n')
-            lineM.append(
-                '%\tout(' + str(cont + 1) + ') = fix(in(' + str(cont + 1) + ') + ((aux(' + str(
-                    cont + 1) + ') - in(' + str(
-                    cont + 1) + ')) * mu));\n')
-            lineM.append(
-                '//\tout(' + str(cont) + ') = trunc(in(' + str(cont) + ') + ((aux(' + str(cont) + ') - in(' + str(
-                    cont) + ')) * mu));\n')
-            lineM.append(
-                '#    out[' + str(cont) + '] = np.fix(inp[' + str(cont) + '] + ((aux[' + str(cont) + '] - inp[' + str(
-                    cont) + ']) * mu))\n')
-        line.append('\nendmodule\n')
-        lineM.append('%end\n')
-        lineM.append('//\treturn out;\n//}\n')
-        lineM.append('#    return out\n')
-        file = open('../results/tas.m', 'w')
-        for linha in lineM:
-            file.write(linha)
-        file.close()
-        return line
+def sparseConst(pattern, occupancy, path, nome, signalGenerate=False):
+    bunch = pattern.rsplit('b', 1)
+    empty = bunch[1].rsplit('e', 1)
+    b = int(bunch[0])
+    e = int(empty[0])
+    u = Utiliters()
+    bwindow = b + 6
+    window = b + e
+    halfA = e - int(math.ceil(e / 2))
+    halfCd = int(math.ceil((bwindow - window) / 2))
+    halfCe = int(bwindow - window - halfCd)
+    fillAd = np.zeros(halfA)
+    fillAe = np.zeros(e - halfA)
+    if halfCd > 0:
+        fillCd = np.zeros(halfCd)
+    else:
+        fillCd = np.arange(0)
+    if halfCe > 0:
+        fillCe = np.zeros(halfCe)
+    else:
+        fillCe = np.arange(0)
+    H, A, B = matrizes.generate(b)
+    matrix = matrizes.matrix()
+    constPCD = u.getPcdConst(A)
+    constTAS = u.getTasConst()
+    if signalGenerate:
+        signalT, signalN, signalTf, signalNf = u.sgen(pattern, samples, b, fillAd, fillAe, matrix, path)
+    else:
+        try:
+            signalT = np.genfromtxt(path + 'signalT_' + pattern + '_' + str(occupancy) + '.csv', delimiter=',')
+            signalN = np.genfromtxt(path + 'signalN_' + pattern + '_' + str(occupancy) + '.csv', delimiter=',')
+            signalTf = np.genfromtxt(path + 'fir/signalT_' + pattern + '_' + str(occupancy) + '.csv', delimiter=',')
+            signalNf = np.genfromtxt(path + 'fir/signalN_' + pattern + '_' + str(occupancy) + '.csv', delimiter=',')
+        except:
+            print('Error get saved signals')
+            signalT, signalN, signalTf, signalNf = u.sgen(pattern, samples, b, fillAd, fillAe, matrix, path)
+    nnzST = np.count_nonzero(signalT)
+    nzST = len(signalT) - nnzST
+    signalF = algo.FIR(26, signalNf, signalTf, signalN)
+    rmsFIR = gerador.rms(signalF - signalT)
+    stdFIR = gerador.std(signalF - signalT)
+    return collections.OrderedDict(
+        {'nome': nome, 'iterations': iterations, 'b': b, 'e': e, 'window': window, 'fillAd': fillAd, 'fillAe': fillAe, 'fillCd': fillCd,
+         'fillCe': fillCe, 'constPCD': constPCD, 'constTAS': constTAS, 'nnzST': nnzST, 'nzST': nzST, 'rmsFIR': rmsFIR,
+         'stdFIR': stdFIR, 'H': H, 'A': A, 'B': B, 'signalT': signalT, 'signalN': signalN, 'patterns': patterns, 'sG': sG,
+         'eG': eG, 'sQ': sQ, 'eQ': eQ, 'sL': sL, 'eL': eL, 'samples': samples, 'algo': ['TAS', 'SSF', 'GD', 'PCD'], 'occupancy': occupancy})
 
-    def piso(self, args):
-        bunch = args[0].rsplit('b', 1)
-        empty = bunch[1].rsplit('e', 1)
-        b = int(bunch[0])
-        e = int(empty[0])
-        window = b + e
-        halfE = e - int(math.ceil(e / 2))
-        bits = math.ceil(math.log(window, 2)) + 1
-        line = ['']
-        line.append('module shift_piso\n#(\n')
-        line.append('\tparameter bits = 15,\n\tparameter gain = bits - ' + str(args[1]) + '\n)\n(\n')
-        line.append('\tinput                      clk,\n')
-        line.append('\tinput                      en,\n')
-        for cont in range(b):
-            line.append('\tinput      signed [bits:0] a' + util.sstr(cont, '0') + ',\n')
-        line.append('\toutput reg signed [bits:0] out\n);\n\n')
-        line.append('\treg signed [' + util.sstr(bits - 1) + ':0] q;\n\n')
-        line.append('\talways @ (posedge clk)\n')
-        line.append('\tbegin\n')
-        line.append('\t\tif (en == 1\'b1)\n')
-        line.append('\t\t\tq = ' + util.sstr(bits) + '\'d00;\n')
-        line.append('\t\telse\n\t\tcase (q)\n')
-        for cont in range(window):
-            line.append(
-                '\t\t\t' + str(bits) + '\'d' + util.sstr(cont, '0') + ':   q <= ' + str(bits) + '\'d' + util.sstr(
-                    cont + 1, '0') + ';\n')
-        # line.append('\t\t\tdefault: q <= ' + str(bits) + '\'d00;\n')
-        line.append('\t\t\tdefault: q <= 0;\n')
-        line.append('\t\tendcase\n\tend\n\n')
-
-        line.append('\twire signed [bits:0] aux [' + util.sstr(b - 1) + ':0];\n\n')
-
-        for cont in range(b):
-            line.append(
-                '\tassign aux[' + util.sstr(cont) + '] = a' + util.sstr(cont, '0') + '[bits] == 1 ? 0 : a' + util.sstr(
-                    cont, '0') + ' >>> gain;\n')
-
-        line.append('\n\talways @ (*)\n')
-        line.append('\tbegin\n\t\tcase (q)\n')
-        count = 0
-        for cont in range(halfE):
-            # line.append('\t\t\t' + str(bits) + '\'d' + util.sstr(count, '0') + ':   out <= ' + str(bits) + '\'d00;\n')
-            line.append('\t\t\t' + str(bits) + '\'d' + util.sstr(count, '0') + ':   out <= 0;\n')
-            count += 1
-        for cont in range(b):
-            line.append('\t\t\t' + str(bits) + '\'d' + util.sstr(count, '0') + ':   out <= aux[' + util.sstr(cont) + '];\n')
-            count += 1
-        for cont in range(e - halfE):
-            # line.append('\t\t\t' + str(bits) + '\'d' + util.sstr(count, '0') + ':   out <= ' + str(bits) + '\'d00;\n')
-            line.append('\t\t\t' + str(bits) + '\'d' + util.sstr(count, '0') + ':   out <= 0;\n')
-            count += 1
-        # line.append('\t\t\tdefault: out <= ' + str(bits) + '\'d00;\n')
-        line.append('\t\t\tdefault: out <= 0;\n')
-        line.append('\t\tendcase\n\tend\n\nendmodule\n')
-        return line
-
-    def simulation(self):
-        args = self.argsSimulate
-        line = ['']
-        line.append('`timescale 1ns / 1ns\n\n')
-        line.append('module testes();\n\n')
-        line.append('\treg clk;\n')
-        line.append('\treg signed [' + util.sstr(args[0], '0') + ':0] adc;\n')
-        line.append('\tinteger fcom_ruido;\n')
-        line.append('\tinteger fverilog;\n')
-        line.append('\tinteger statusI;\n\n')
-        line.append('\tinitial begin\n')
-        line.append('\t\tclk  = 1\'b0;\n')
-        line.append('\t\tadc  = ' + util.sstr(args[0], '0') + '\'d0;\n')
-        line.append('\t\tfcom_ruido = $fopen("signalN.txt","r");\n')
-        line.append('\t\tfverilog   = $fopen("signalV.txt","w");\n')
-        line.append('\tend\n\n')
-        line.append('\talways #1 clk <= ~clk;\n\n')
-        line.append('\talways @(posedge clk)\n')
-        line.append('\tbegin\n')
-        line.append('\t\tstatusI = $fscanf(fcom_ruido,"%d", adc);\n')
-        line.append('\t\t$fdisplay(fverilog,"%d", dac);\n')
-        line.append('\tend\n\n')
-        line.append('\twire signed [' + util.sstr(int(args[0]) + int(args[1]), '0') + ':0] dac;\n\n')
-        line.append('\tmain main(clk, adc, dac);\n\n')
-        line.append('endmodule \n')
-        file = open(args[2] + 'testes.v', 'w')
-        for linha in line:
-            file.write(linha)
-        file.close()
-
-
-class FloatAlgo:
-
-    def algoGen(self, args):
-        bunch = args[0].rsplit('b', 1)
-        empty = bunch[1].rsplit('e', 1)
-        b = int(bunch[0])
-        e = int(empty[0])
-        bwindow = b + 6
-        window = b + e
-        halfA = e - int(math.ceil(e / 2))
-        halfCd = int(math.ceil((bwindow - window) / 2))
-        halfCe = int(bwindow - window - halfCd)
-        fillAd = np.zeros(halfA)
-        fillAe = np.zeros(e - halfA)
-        if halfCd > 0:
-            fillCd = np.zeros(halfCd)
-        else:
-            fillCd = np.arange(0)
-        if halfCe > 0:
-            fillCe = np.zeros(halfCe)
-        else:
-            fillCe = np.arange(0)
-        matrizes = Matrizes()
-        gerador = Signal()
-        matrix = matrizes.matrix()
-        algo = Algorithms()
-        H, A = matrizes.generate(b)
-        const = 0
-        if args[1] == 'PCD':
-            const = np.mean(np.power(np.diag(A), -1))
-        if args[1] == 'TAS':
-            const = 33/32
-
-        samples = args[2]
-        signalT, signalN = gerador.signalGenerator(samples, b, fillAd, fillAe, matrix)
-        iteration = int(math.ceil(args[3] / window) * window)
-        mu = 1 / math.pow(2, args[4])
-        signalA = np.arange(0)
-        for ite in range(samples):
-            step = (ite * window)
-            paso = step + window
-            if (e > 6):
-                paso = paso - (e - 6)
-            signalS = np.insert(signalN[step:paso], 0, fillCd)
-            signalS = np.append(signalS, fillCe)
-
-            xAll = signalS[3:b + 3]
-            hr = H.T.dot(signalS)
-            x = xAll
-            for i in range(iteration):
-                if args[1] == 'GD':
-                    x = algo.GD(x, hr, A, mu)
-                if args[1] == 'GDP':
-                    x = algo.GDP(x, hr, A, mu)
-                if args[1] == 'SSF':
-                    x = algo.SSF(x, hr, A, mu, args[5])
-                if args[1] == 'PCD':
-                    x = algo.PCD(x, hr, A, mu, args[5], const)
-                if args[1] == 'TAS':
-                    x = algo.TAS(x, hr, A, mu, args[5], const)
-            x = np.where(x < 0, 0, x)
-            signalA = np.append(signalA, fillAd)
-            signalA = np.append(signalA, x)
-            signalA = np.append(signalA, fillAe)
-        rms = gerador.rms(signalA - signalT)
-        tmp = signalT.tolist()
-        file = open(args[7] + 'signalT.txt', 'w')
-        for linha in tmp:
-            file.write(str(int(linha))+'\n')
-        file.close()
-        tmp = signalN.tolist()
-        file = open(args[7] + 'signalN.txt', 'w')
-        for linha in tmp:
-            file.write(str(int(linha))+'\n')
-        file.close()
-        tmp = signalA.tolist()
-        file = open(args[7] + 'signalA.txt', 'w')
-        for linha in tmp:
-            file.write(str(int(linha))+'\n')
-        file.close()
-        return signalT, rms
-
-
-if __name__ == '__main__':
-    startedTest = datetime.datetime.now()
-    print('Starting prepare the tests at ' + startedTest.strftime("%H:%M:%S %d/%m/%Y"))
-    util = Utiliters()
+def testar(patterns, radical, sM, eM, const, lock):
+    u = Utiliters()
+    info = u.setup_logger('information', radical + 'info.log')
+    startedI = datetime.datetime.now()
+    print('Started Quantization Test, for mu %d at %s' % (sM, startedI.strftime("%H:%M:%S %d/%m/%Y")))
+    info.info('Started Quantization Test, for mu %d' % sM)
+    rms = np.zeros(8)
     gerador = Signal()
-    floatAlgo = FloatAlgo()
-    # obtained through matrix H
-    #coefficient = [0.00002304, 0.0172264, 0.452445, 1.0, 0.563307, 0.149335, 0.0423598]
-    # desirable precision based on the coefficients of matrix H
-    #precision = len(coefficient) - 1
-    # if quantization still zero as below the precision above will be used
-    quantization = 0
-    # path to work with
-    logA = 'logs/analyses_syntesis.log'
-    logS = 'logs/simulation.log'
-    #path = './'
-    path = os.getcwd().replace('\\', '/') + '/../../Verilog/Implementation/'; open(path + logA, 'w').close(); open(path + logS, 'w').close()
-    result = []
+    algo = Algorithms()
 
-    config = util.load_cfg('configuration.cfg')
-    for i in range(len(config)):
-        # LHC collision pattern
-        pattern = config[i].get('Pattern')
-        # number of bits in the entrance of the algorithm
-        input = int(config[i].get('Input'))
-        # minimum iteration required, the real value is dependent of the pattern adopted
-        iteration = int(config[i].get('Iterations'))
-        # if quantization still zero as above the precision above will be used
-        quantization = int(config[i].get('Quantization'))
-        # gain desirable to the simulation
-        gain = int(config[i].get('Gain'))
-        # total number of windows samples to test
-        samples = int(config[i].get('Samples'))
-        # Algorithm to be used in this simulation
-        algo = str(config[i].get('Algorithm'))
-        # value of mu
-        mu = float(config[i].get('Mu'))
-        mu = int(math.log(1 / mu, 2))
-        # value of lambda, if it is the case
-        lamb = float(config[i].get('Lambda'))
-        # value of Const, if it the case
-        constant = float(config[i].get('Const'))
+    for pattern in patterns:
+        started = datetime.datetime.now()
+        print('Started Float Tests, for mu %d and with the pattern %s at %s' % (
+            sM, pattern, started.strftime("%H:%M:%S %d/%m/%Y")))
+        info.info('Started Float Tests, for mu %d and with the pattern %s' % (sM, pattern))
+        sConst = const[pattern]
+        nome = sConst['nome']
+        b = sConst['b']
+        e = sConst['e']
+        window = sConst['window']
+        fillAd = len(sConst['fillAd'])
+        fillCd = sConst['fillCd']
+        fillCe = sConst['fillCe']
+        H = sConst['H']
+        A = sConst['A']
+        B = sConst['B']
+        constPCD = sConst['constPCD']
+        constTAS = sConst['constTAS']
+        signalT = sConst['signalT']
+        signalN = sConst['signalN']
+        samples = sConst['samples']
+        sL = sConst['sL']
+        eL = sConst['eL']
+        # Float tests
+        iterations = sConst['iterations']
+        #iterations = int(math.ceil(iterations / window) * window)
+        for it in range(1,iterations):
+            for lam in range(sL, eL):
+                if lam != 0:
+                    lamb = lam / 10
+                else:
+                    lamb = 0
+                for muI in range(sM, eM):
+                    muF = 1 / math.pow(2, muI)
+                    if muF==1:
+                        mi = math.inf
+                    else:
+                        mi = muF
+                    signalGD = np.zeros(window * samples)
+                    signalSSF = np.zeros(window * samples)
+                    signalPCD = np.zeros(window * samples)
+                    signalTAS = np.zeros(window * samples)
+                    signalGDi = np.zeros(window * samples)
+                    signalSSFi = np.zeros(window * samples)
+                    signalPCDi = np.zeros(window * samples)
+                    signalTASi = np.zeros(window * samples)
+                    for ite in range(samples):
+                        step = (ite * window)
+                        paso = step + window
+                        if (e > 6):
+                            paso = paso - (e - 6)
+                        signalS = np.concatenate((fillCd, signalN[step:paso], fillCe))
+                        step += fillAd
+                        paso = step + b
 
-        signalT, rmsFloat = floatAlgo.algoGen([pattern, algo, samples, iteration, mu, lamb, constant, path + 'simulation/modelsim/'])
-        verilog = Verilog(pattern, algo, iteration, mu, lamb, quantization, gain, constant=constant, path=path)
+                        xAll = signalS[3:b + 3]
+                        Bs = B.dot(signalS)
+                        Hs = H.T.dot(signalS)
+
+                        x = xAll
+                        y = Bs
+                        for i in range(it):
+                            x = algo.GD(x, Hs, A, mi)
+                            y = algo.GD(y, Hs, A, mi)
+                        x = np.where(x < 0, 0, x)
+                        y = np.where(y < 0, 0, y)
+                        signalGD[step:paso] = x
+                        signalGDi[step:paso] = y
+
+                        x = xAll
+                        y = Bs
+                        for i in range(it):
+                            x = algo.SSF(x, Hs, A, mi, lamb)
+                            y = algo.SSF(y, Hs, A, mi, lamb)
+                        x = np.where(x < 0, 0, x)
+                        y = np.where(y < 0, 0, y)
+                        signalSSF[step:paso] = x
+                        signalSSFi[step:paso] = y
+
+                        x = xAll
+                        y = Bs
+                        for i in range(it):
+                            x = algo.PCD(x, Hs, A, mi, lamb, constPCD)
+                            y = algo.PCD(y, Hs, A, mi, lamb, constPCD)
+                        x = np.where(x < 0, 0, x)
+                        y = np.where(y < 0, 0, y)
+                        signalPCD[step:paso] = x
+                        signalPCDi[step:paso] = y
+
+                        x = xAll
+                        y = Bs
+                        for i in range(it):
+                            x = algo.TAS(x, Hs, A, mi, lamb, constTAS)
+                            y = algo.TAS(y, Hs, A, mi, lamb, constTAS)
+                        x = np.where(x < 0, 0, x)
+                        y = np.where(y < 0, 0, y)
+                        signalTAS[step:paso] = x
+                        signalTASi[step:paso] = y
+                    rms[0] = gerador.rms(signalGD - signalT)
+                    rms[1] = gerador.rms(signalSSF - signalT)
+                    rms[2] = gerador.rms(signalPCD - signalT)
+                    rms[3] = gerador.rms(signalTAS - signalT)
+                    rms[4] = gerador.rms(signalGDi - signalT)
+                    rms[5] = gerador.rms(signalSSFi - signalT)
+                    rms[6] = gerador.rms(signalPCDi - signalT)
+                    rms[7] = gerador.rms(signalTASi - signalT)
+
+                    line = [str(it) + u.s(muF) + u.s(lamb)]
+                    for j in range(len(rms)):
+                        line.append('%s' % (u.s(rms[j])))
+                    line.append('\n')
+
+                    with lock:
+                        with open(nome + 'float.csv', 'a') as file:
+                            for linha in line:
+                                file.write(linha)
+            #iterations += window
+
+        ended = datetime.datetime.now()
+        print('Ended Float Tests, for mu %d and with the pattern %s at %s after %s' % (
+            sM, pattern, ended.strftime("%H:%M:%S %d/%m/%Y"), u.totalTime(started)))
+        info.info('Ended Float Tests, for mu %d and with the pattern %s after %s' % (
+            sM, pattern, u.totalTime(started)))
+    ended = datetime.datetime.now()
+    print('Ended Quantization Test, for mu %d at %s after %s' % (
+        sM, ended.strftime("%H:%M:%S %d/%m/%Y"), u.totalTime(startedI)))
+    info.info('Ended Quantization Test, for mu %d after %s' % (sM, u.totalTime(startedI)))
+
+
+class Simulations():
+
+    def __init__(self, patterns):
+        self.patterns = patterns
+
+    def getMin(self, value):
+        res = 0
+        try:
+            res = int(np.argwhere(value == np.min(value[np.nonzero(value)]))[0])
+        except:
+            try:
+                res = int(np.argwhere(value == np.min(value[np.nonzero(value)])))
+            except:
+                pass
+        return res
+
+    def getMax(self, value, fir):
+        less = value <= fir
+        return np.where(less, value, np.nanmin(value) - 1).argmax(0)
+
+    def get_pair(self, line):
+        key, sep, value = line.strip().partition(' : ')
+        return str(key), value
+
+    def logicElements(self, path):
+        with open(path, 'r') as fd:
+            d = dict(self.get_pair(line) for line in fd)
+        return d.get('Total logic elements')
+
+    def verilogQuantization(self, radical, signalGenerate=False):
+        const = []
+        for pattern in self.patterns:
+            nome = radical + pattern + '_'
+            sConst = sparseConst(pattern, occupancy, path, nome, signalGenerate)
+            const.append([pattern, sConst])
+            line = [
+                'Iterations,mu,lambda,GD:RMS,SSF:RMS,PCD:RMS,TAS:RMS,GDi:RMS,SSFi:RMS,PCDi:RMS,TASi:RMS,Configuration:,Samples,FIR:26:RMS,PCD:Const,TAS:Const\ninf,inf,inf,inf,inf,inf,inf,inf,inf,inf,inf,inf' + u.s(
+                    samples) + u.s(sConst['rmsFIR']) + u.s(sConst['constPCD']) + u.s(sConst['constTAS']) + '\n']
+            with open(nome + 'float.csv', 'w') as file:
+                for linha in line:
+                    file.write(linha)
+
+            line = [
+                'Iterations,mu,lambda,Quantization,Gain,GD:RMS,GD:STD,GD:Err:RMS,GD:Err:STD,GD:FPR,GD:TPR,SSF:RMS,SSF:STD,SSF:Err:RMS,SSF:Err:STD,SSF:FPR,SSF:TPR,PCD:RMS,PCD:STD,PCD:Err:RMS,PCD:Err:STD,PCD:FPR,PCD:TPR,TAS:RMS,TAS:STD,TAS:Err:RMS,TAS:Err:STD,TAS:FPR,TAS:TPR,Configuration:,Samples,FIR:26:RMS,FIR:26:STD,PCD:Const,TAS:Const\ninf,inf,inf,inf,inf,inf,inf,inf,inf,inf,inf,inf,inf,inf,inf,inf,inf,inf,inf,inf,inf,inf,inf,inf,inf,inf,inf,inf,inf,inf' + u.s(
+                    samples) + u.s(sConst['rmsFIR']) + u.s(sConst['stdFIR']) + u.s(sConst['constPCD']) + u.s(
+                    sConst['constTAS']) + '\n']
+            with open(nome + 'fix.csv', 'w') as file:
+                for linha in line:
+                    file.write(linha)
+        self.const = collections.OrderedDict(const)
+        m = Manager()
+        loock = m.Lock()
+        pool = ProcessPoolExecutor()
+        futures = [pool.submit(testar, patterns, radical, mu, mu + 1, self.const, loock) for mu in range(4)]
+        for future in futures:
+            future.result()
+        return self.const
+
+    def getConfig(self, stand=None, suffix='fix'):
+        eixo = ['Iterations', 'mu', 'Lambda', 'Quantization', 'Gain']
+        if stand:
+            stands = stand
+        else:
+            stands = self.patterns
+        bestConfig = []
+        bestPerform = []
+        for pattern in stands:
+            algo = self.const[pattern]['algo']
+            nome = radical + pattern + '_' + suffix + '.csv'
+            data = pd.read_csv(nome)
+            auxConf = []
+            auxPerf = []
+            for a in algo:
+                label = a + ':RMS'
+                indexConf = self.getMin(np.asarray(data[label]))
+                indexPerf = self.getMax(np.asarray(data[label]), self.const[pattern]['rmsFIR'])
+                tmpConf = []
+                tmpPerf = []
+                for e in eixo:
+                    dado = data[e][indexConf]
+                    tmpConf.append([e, np.nan if np.isinf(dado) else dado])
+                    dado = data[e][indexPerf]
+                    tmpPerf.append([e, np.nan if np.isinf(dado) else dado])
+                auxConf.append([a, collections.OrderedDict(tmpConf)])
+                auxPerf.append([a, collections.OrderedDict(tmpPerf)])
+            bestConfig.append([pattern, collections.OrderedDict(auxConf)])
+            bestPerform.append([pattern, collections.OrderedDict(auxPerf)])
+        return collections.OrderedDict({'config': collections.OrderedDict(bestConfig),
+                                        'perform': collections.OrderedDict(bestPerform)})
+
+    def getAllDados(self, dados, suffix='fix'):
+        stands = self.patterns
+        eixo = ['RMS', 'FPR', 'TPR']
+        bestConfig = []
+        bestPerform = []
+        for pattern in stands:
+            algo = self.const[pattern]['algo']
+            nome = radical + pattern + '_' + suffix + '.csv'
+            data = pd.read_csv(nome)
+            auxConf = []
+            auxPerf = []
+            for a in algo:
+                label = a + ':' + eixo[0]
+                indexConf = self.getMin(np.asarray(data[label]))
+                indexPerf = self.getMax(np.asarray(data[label]), self.const[pattern]['rmsFIR'])
+                tmpConf = list(dados['config'][pattern][a].items())
+                tmpPerf = list(dados['perform'][pattern][a].items())
+                for e in eixo:
+                    dado = data[a + ':' + e][indexConf]
+                    tmpConf.append([e, np.nan if np.isinf(dado) else dado])
+                    dado = data[a + ':' + e][indexPerf]
+                    tmpPerf.append([e, np.nan if np.isinf(dado) else dado])
+                auxConf.append([a, collections.OrderedDict(tmpConf)])
+                auxPerf.append([a, collections.OrderedDict(tmpPerf)])
+            bestConfig.append([pattern, collections.OrderedDict(auxConf)])
+            bestPerform.append([pattern, collections.OrderedDict(auxPerf)])
+        return collections.OrderedDict({'config': collections.OrderedDict(bestConfig),
+                                        'perform': collections.OrderedDict(bestPerform)})
+
+    def quartusAnalysesAndSyntheses(self, stand, algo, Iterations, mu, Lambda, quantization, gain, constant=0, pathV='./', logA='./'):
+        muI = int(mu) if mu.is_integer() else int(math.log(1 / mu, 2))
+        verilog = Verilog(stand, algo, Iterations, muI, Lambda, quantization, gain, constant, path=pathV)
         verilog.generate()
+        print(check_output(
+            'quartus_map --read_settings_files=on --write_settings_files=off Algorithm -c algo >> ' + logA,
+            cwd=pathV, shell=True).decode('utf-8'))
+        return verilog
 
-        started = datetime.datetime.now()
-        print('Started analyses and synthesis %d of %d at %s' % (
-        i + 1, len(config), started.strftime("%H:%M:%S %d/%m/%Y")))
-
-        print(
-            check_output('quartus_map --read_settings_files=on --write_settings_files=off Algorithm -c algo >> ' + logA,
-                         cwd=path, shell=True).decode('utf-8'))
-        print('Finished analyses and synthesis after ' + util.totalTime(started))
-        started = datetime.datetime.now()
-
-        print('Started simulate %d of %d at %s' % (i + 1, len(config), started.strftime("%H:%M:%S %d/%m/%Y")))
+    def modelSimSimulate(self, stand, verilog, gain, pathV='./', logS='./'):
+        signalT = self.const[stand]['signalT']
+        window = self.const[stand]['window']
         verilog.simulation()
-
-        bunch = pattern.rsplit('b', 1)
-        empty = bunch[1].rsplit('e', 1)
-        window = int(bunch[0]) + int(empty[0])
+        path = pathV + 'simulation/modelsim/'
 
         origem = 'algo_run_msim_rtl_verilog.do'
         destino = 'Algorithm_run_verilog.do'
-        with open(path + 'simulation/modelsim/' + origem) as f:
-            with open(path + 'simulation/modelsim/' + destino, "w") as f1:
+        with open(path + origem) as f:
+            with open(path + destino, "w") as f1:
                 for line in f:
                     if not "wave" in line:
                         f1.write(line)
@@ -1285,35 +1014,26 @@ if __name__ == '__main__':
                         break
         clock = 25
         length = samples * window
-        with open(path + 'simulation/modelsim/' + destino, "a") as f1:
-            f1.write('force testes/clk 1 0ns, 0 ' + str(clock / 2) + 'ns -repeat ' + str(clock) + 'ns\n\n')
-            f1.write('run ' + str(int(math.ceil((length + (window * 2.5)) * clock))) + ' ns\nquit\n')
+        with open(path + destino, "a") as file:
+            file.write('force testes/clk 1 0ns, 0 ' + str(clock / 2) + 'ns -repeat ' + str(clock) + 'ns\n\n')
+            file.write('run ' + str(int(math.ceil((length + (window * 2.5)) * clock))) + ' ns\nquit\n')
 
+        print(check_output('vsim -c -do ' + destino + ' >> ../../' + logS, cwd=path, shell=True).decode('utf-8'))
+
+        signalV = u.loadVerilogSignal(path + 'signalV.txt', window, length)
+        rmsV = u.s(gerador.rms(np.divide(signalV, math.pow(2, gain)) - signalT)).replace(',', '')
+        logicE = self.logicElements(pathV + 'output_files/algo.map.summary').replace(',', '')
+        return rmsV, logicE
+
+    def analysesAndSyntesis(self, config, stand, algo, const, param, pathV='./', logA='./', logS='./'):
+        startedIntern = datetime.datetime.now()
         print(
-            check_output('vsim -c -do ' + destino + ' >> ../../' + logS, cwd=path + '/simulation/modelsim/',
-                         shell=True).decode('utf-8'))
-
-        signalV = util.loadVerilogSignal(path + 'simulation/modelsim/signalV.txt', window, length)
-        rmsInt = gerador.rms(np.divide(signalV, math.pow(2, gain)) - signalT)
-        erro = ((rmsInt - rmsFloat) / rmsFloat) * 100
-        print('Finished the simulation %d of %d after %s' % (i + 1, len(config), util.totalTime(started)))
-        logicE = logicElements(path + 'output_files/algo.map.summary')
-        result.append(collections.OrderedDict({'Pattern': pattern, 'Algorithm': algo, 'Samples': samples,
-                                               'Iterations': math.ceil(iteration / window) * window,
-                                               'Quantization': quantization, 'Gain': gain,
-                                               'RMS Floating': util.rreplace(str(rmsFloat), '.', ','),
-                                               'RMS Verilog': util.rreplace(str(rmsInt), '.', ','),
-                                               'Erro': util.rreplace(str(erro), '.', ','),
-                                               'LogicElements': util.rreplace(logicE, ',', '.'),
-                                               'Mu': str(1/math.pow(2, mu)), 'Lambda': lamb, 'Const': constant}))
-
-    timestr = time.strftime("%Y%m%d-%H%M%S")
-    with open('result_' + timestr + '.csv', 'w') as f:
-        w = csv.DictWriter(f, result[0].keys(), delimiter=',', quotechar='|', quoting=csv.QUOTE_MINIMAL)
-        w.writerow(dict((fn, fn) for fn in result[0].keys()))
-        w.writerows(result)
-    started = datetime.datetime.now()
-    print('Results saved with success at ' + started.strftime("%H:%M:%S %d/%m/%Y"))
-    print('Total time of the test ' + util.totalTime(startedTest))
-
-
+            'Start Altera Quartus analyses and synthesis of the best %s of the pattern %s of the algorithm %s at %s' % (
+            config, stand, algo, startedIntern.strftime("%H:%M:%S %d/%m/%Y")))
+        info.info('Start Altera Quartus analyses and synthesis of the best %s of the pattern %s of the algorithm %s' % (config, stand, algo))
+        verilog = self.quartusAnalysesAndSyntheses(stand, algo, param['Iterations'], param['mu'], param['Lambda'],
+                                                   param['Quantization'], param['Gain'], constant=const, pathV=pathV,
+                                                   logA=logA)
+        endedIntern = datetime.datetime.now()
+        print(
+            'Finished Altera Quartus analyses and synthesis  of the best %s of the pattern %s of the algori

@@ -1,9 +1,15 @@
 # -*- coding: utf-8 -*-
 from subprocess import check_output
-from src.utiliters.algorithms import Algorithms
-from src.utiliters.matrizes import Matrizes
-from src.utiliters.mathLaboratory import Signal
-from src.utiliters.util import Utiliters
+try:
+    from src.utiliters.algorithms import Algorithms
+    from src.utiliters.matrizes import Matrizes
+    from src.utiliters.mathLaboratory import Signal
+    from src.utiliters.util import Utiliters
+except ModuleNotFoundError:
+    from utiliters.algorithms import Algorithms
+    from utiliters.matrizes import Matrizes
+    from utiliters.mathLaboratory import Signal
+    from utiliters.util import Utiliters
 import numpy as np
 import collections
 import functools
