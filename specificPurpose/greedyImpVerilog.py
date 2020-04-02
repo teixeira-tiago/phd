@@ -79,21 +79,21 @@ import re
 # lista = arquivo.split(", ")
 #
 # valores = list(map(int, lista))
-# partner, janela, indices = [], [], []
+# pattern, janela, indices = [], [], []
 # aux = 0
 # for i in range(len(valores)-1):
 #     aux = (valores[i+1] - valores[i] -1)
 #     if (aux != 0):
-#         partner.append(aux)
+#         pattern.append(aux)
 #         indices.append(i)
 #
 # for j in range(len(indices)-1):
-#     aux = (valores[indices[j+1]]-valores[indices[j]]-partner[j])
+#     aux = (valores[indices[j+1]]-valores[indices[j]]-pattern[j])
 #     janela.append(aux)
 #     if (aux != 8):
 #         print('fudeu')
 #
-# print(partner)
+# print(pattern)
 # print(janela)
 
 ##################################################
