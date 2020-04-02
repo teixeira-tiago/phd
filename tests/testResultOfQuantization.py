@@ -1,11 +1,17 @@
 import numpy as np
 import math
-from src.utiliters.mathLaboratory import Signal
-from src.utiliters.util import Utiliters
-from src.utiliters.matrizes import Matrizes
-from src.utiliters.algorithmsVerilog import XbYe
-from src.utiliters.algorithms import Algorithms
-from src.utiliters.util import Utiliters
+try:
+    from src.utiliters.mathLaboratory import Signal
+    from src.utiliters.matrizes import Matrizes
+    from src.utiliters.algorithmsVerilog import XbYe
+    from src.utiliters.algorithms import Algorithms
+    from src.utiliters.util import Utiliters
+except ModuleNotFoundError:
+    from utiliters.mathLaboratory import Signal
+    from utiliters.matrizes import Matrizes
+    from utiliters.algorithmsVerilog import XbYe
+    from utiliters.algorithms import Algorithms
+    from utiliters.util import Utiliters
 
 u = Utiliters()
 matrizes = Matrizes()
@@ -13,7 +19,7 @@ matrix = matrizes.matrix()
 b, e = 48, 7
 #b, e = 8, 4
 
-partner = '%db%de' % (b, e)
+pattern = '%db%de' % (b, e)
 H, A, B = matrizes.generate(b)
 
 constPCD = u.getPcdConst(A)
@@ -55,7 +61,7 @@ signalN = np.genfromtxt(path + 'signalN_48b7e_30.csv', delimiter=',')
 nnzST = np.count_nonzero(signalT)
 nzST = len(signalT) - nnzST
 verilog = XbYe()
-algov = verilog.getAlgo([partner])
+algov = verilog.getAlgo([pattern])
 signalGD = np.zeros(window *  totalSamples)
 signalSSF = np.zeros(window * totalSamples)
 signalPCD = np.zeros(window * totalSamples)

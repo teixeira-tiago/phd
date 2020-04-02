@@ -1,7 +1,13 @@
-from src.utiliters.algorithms import Algorithms
-from src.utiliters.mathLaboratory import Signal
-from src.utiliters.matrizes import Matrizes
-from src.utiliters.util import Utiliters
+try:
+    from src.utiliters.algorithms import Algorithms
+    from src.utiliters.matrizes import Matrizes
+    from src.utiliters.mathLaboratory import Signal
+    from src.utiliters.util import Utiliters
+except ModuleNotFoundError:
+    from utiliters.algorithms import Algorithms
+    from utiliters.matrizes import Matrizes
+    from utiliters.mathLaboratory import Signal
+    from utiliters.util import Utiliters
 from multiprocessing import Manager
 from concurrent.futures import ProcessPoolExecutor
 import pandas as panda
@@ -254,9 +260,9 @@ def test(const, occupancy, lock):
 if __name__ == '__main__':
     matrizes = Matrizes()
     util = Utiliters()
-    partner = '8b4e'
+    pattern = '8b4e'
     totalSamples = 20
-    bunch = partner.rsplit('b', 1)
+    bunch = pattern.rsplit('b', 1)
     empty = bunch[1].rsplit('e', 1)
     b = int(bunch[0])
     e = int(empty[0])
