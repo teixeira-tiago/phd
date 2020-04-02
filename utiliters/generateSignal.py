@@ -1,12 +1,16 @@
-from src.utiliters.mathLaboratory import Signal
-from src.utiliters.matrizes import Matrizes
+try:
+    from src.utiliters.mathLaboratory import Signal
+    from src.utiliters.matrizes import Matrizes
+except ModuleNotFoundError:
+    from utiliters.mathLaboratory import Signal
+    from utiliters.matrizes import Matrizes
 import numpy as np
 import math
 
 try:
-    partner = str(input('\nPartner:\t'))
+    pattern = str(input('\npattern:\t'))
 except:
-    partner = '8b4e'
+    pattern = '8b4e'
     print('Error')
 
 try:
@@ -15,7 +19,7 @@ except ValueError:
     samples = 1000
     print("Not a number")
 
-bunch = partner.rsplit('b', 1)
+bunch = pattern.rsplit('b', 1)
 empty = bunch[1].rsplit('e', 1)
 b = int(bunch[0])
 e = int(empty[0])
@@ -43,7 +47,7 @@ path = './../testes/signals/'
 for occupancy in occupancies:
     signalT, signalN = gerador.signalGenerator(samples, b, fillAd, fillAe, matrix, occupancy=occupancy)
     signalTf, signalNf = gerador.signalGenerator(samples, b, fillAd, fillAe, matrix, occupancy=occupancy)
-    np.savetxt(path + 'signalT_'+partner+'_'+str(occupancy)+'.csv', signalT, delimiter=',')
-    np.savetxt(path + 'signalN_'+partner+'_'+str(occupancy)+'.csv', signalN, delimiter=',')
-    np.savetxt(path + 'fir/signalT_'+partner+'_'+str(occupancy)+'.csv', signalTf, delimiter=',')
-    np.savetxt(path + 'fir/signalN_'+partner+'_'+str(occupancy)+'.csv', signalNf, delimiter=',')
+    np.savetxt(path + 'signalT_'+pattern+'_'+str(occupancy)+'.csv', signalT, delimiter=',')
+    np.savetxt(path + 'signalN_'+pattern+'_'+str(occupancy)+'.csv', signalN, delimiter=',')
+    np.savetxt(path + 'fir/signalT_'+pattern+'_'+str(occupancy)+'.csv', signalTf, delimiter=',')
+    np.savetxt(path + 'fir/signalN_'+pattern+'_'+str(occupancy)+'.csv', signalNf, delimiter=',')

@@ -1,4 +1,7 @@
-from src.utiliters.mathLaboratory import Signal
+try:
+    from src.utiliters.mathLaboratory import Signal
+except ModuleNotFoundError:
+    from utiliters.mathLaboratory import Signal
 import numpy as np
 import datetime
 import logging
@@ -10,14 +13,14 @@ import csv
 
 class Utiliters:
 
-    def sgen(partner, samples, b, fillAd, fillAe, matrix, path):
+    def sgen(pattern, samples, b, fillAd, fillAe, matrix, path):
         gerador = Signal()
         signalT, signalN = gerador.signalGenerator(samples, b, fillAd, fillAe, matrix)
         signalTf, signalNf = gerador.signalGenerator(samples, b, fillAd, fillAe, matrix)
-        np.savetxt(path + 'signalT_' + partner + '.csv', signalT, delimiter=',')
-        np.savetxt(path + 'signalN_' + partner + '.csv', signalN, delimiter=',')
-        np.savetxt(path + 'fir/signalT_' + partner + '.csv', signalTf, delimiter=',')
-        np.savetxt(path + 'fir/signalN_' + partner + '.csv', signalNf, delimiter=',')
+        np.savetxt(path + 'signalT_' + pattern + '.csv', signalT, delimiter=',')
+        np.savetxt(path + 'signalN_' + pattern + '.csv', signalN, delimiter=',')
+        np.savetxt(path + 'fir/signalT_' + pattern + '.csv', signalTf, delimiter=',')
+        np.savetxt(path + 'fir/signalN_' + pattern + '.csv', signalNf, delimiter=',')
         return signalT, signalN, signalTf, signalNf
 
     def calcBit(self, coefficient, precision, maximoInt=1):
@@ -59,8 +62,9 @@ class Utiliters:
         return tmp
 
     def printM(self, matrix, decimals=3):
+        matrix = np.where(np.isnan(matrix), 0, matrix)
         precision = '{: 0.' + str(decimals) + 'f}'
-        np.set_printoptions(formatter={'float': precision.format}, suppress=True, threshold=np.nan)
+        np.set_printoptions(formatter={'float': precision.format}, suppress=True, threshold=np.inf)
         print(matrix)
 
     def totalTime(self, started):
@@ -127,9 +131,15 @@ class Utiliters:
 
         return logger
 
-    def getTasConst(self):
-        constGieseking = 1.01494160640965362502
-        return (math.pi/3) - (constGieseking-1)
+    def getTasConst(self, occupancy=0):
+        if occupancy < 1:
+            constGieseking = 1.01494160640965362502
+            return (math.pi/3) - (constGieseking-1)
+        else:
+            const = {1: [85, 81], 5: [73, 70], 10: [82, 79], 20: [81, 79], 30: [55, 54], 40: [71, 70], 50: [76, 75],
+                     60: [80, 79], 90: [85, 84]}
+            c = const[occupancy]
+            return c[0] / c[1]
 
     def getPcdConst(self, matrixA):
         return np.mean(np.power(np.diag(matrixA), -1))

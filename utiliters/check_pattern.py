@@ -105,17 +105,17 @@ def gerarCSV(empty, bunch, path, run):
     df = pd.DataFrame.from_dict(dict(linhas))
     df.to_csv(path + run.split('.')[0] + '.csv')
 
-def getPatterns(valores, indices, partner):
+def getPatterns(valores, indices, pattern):
     total = len(indices) - 1
     bunch, empty, label = [], [], []
     for j in range(total):
-        aux = (valores[indices[j + 1]] - valores[indices[j]] - partner[j])
+        aux = (valores[indices[j + 1]] - valores[indices[j]] - pattern[j])
         bunch.append(aux)
         bunch.append(0)
         empty.append(0)
-        empty.append(partner[j])
+        empty.append(pattern[j])
         label.append(aux)
-        label.append(partner[j])
+        label.append(pattern[j])
     return bunch, empty, label
 
 def generateAll(path):
@@ -128,14 +128,14 @@ def generateAll(path):
 
             print(run)
             valores = list(map(int, arquivo.split(", ")))
-            partner, indices = [], []
+            pattern, indices = [], []
             for i in range(len(valores) - 1):
                 aux = (valores[i + 1] - valores[i] - 1)
                 if (aux != 0):
-                    partner.append(aux)
+                    pattern.append(aux)
                     indices.append(i)
 
-            bunch, empty, label = getPatterns(valores, indices, partner)
+            bunch, empty, label = getPatterns(valores, indices, pattern)
             # if (aux != 8):
             # print('Janela %d de %d diferente do padrão 8b4e' % (j + 1, total))
 
@@ -148,14 +148,14 @@ def generateTese(path, run):
     with open(path + run, 'r') as file:
         arquivo = file.read()
     valores = list(map(int, arquivo.split(", ")))
-    partner, indices = [], []
+    pattern, indices = [], []
     for i in range(500):#for i in range(len(valores) - 1):
         aux = (valores[i + 1] - valores[i] - 1)
         if (aux != 0):
-            partner.append(aux)
+            pattern.append(aux)
             indices.append(i)
 
-    bunch, empty, label = getPatterns(valores, indices, partner)
+    bunch, empty, label = getPatterns(valores, indices, pattern)
     gerarGraficos(empty, bunch, path, run, label, '_')
 
 path = './runs/tese/'

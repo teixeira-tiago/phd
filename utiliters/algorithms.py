@@ -1,5 +1,10 @@
-from src.utiliters.mathLaboratory import Signal
-from src.utiliters.util import Utiliters
+from scipy.optimize import linprog
+try:
+    from src.utiliters.mathLaboratory import Signal
+    from src.utiliters.util import Utiliters
+except ModuleNotFoundError:
+    from utiliters.mathLaboratory import Signal
+    from utiliters.util import Utiliters
 import pandas as panda
 import numpy as np
 import math
@@ -7,7 +12,7 @@ import math
 
 class Algorithms:
 
-    def FIR(self, Order, signalNf, signalTf, signalN):
+    def FIR(self, Order, signalNf, signalTf, signalN, verilog=False):
         G = np.zeros([len(signalNf), Order])
         Gtruth = np.zeros([len(signalTf), Order])
         for i in range(Order):
@@ -17,9 +22,64 @@ class Algorithms:
         tmp = np.asmatrix(G.T.dot(G))
         tetha = tmp.I.dot(G.T).dot(y)
         tetha = tetha.flat
+
+        filtro = []
+        for s in range(len(signalN[:20])):
+            soma = 0
+            for t in range(len(tetha)):
+                #print(int(tetha[t]*math.pow(2,32)))
+                soma += signalN[s]*tetha[t]
+            # exit()
+            filtro.append(soma)
+        util = Utiliters()
+        #util.printM(filtro)
+        if verilog:
+            arq = './../results/main.v'
+
+            ltetha = len(tetha)
+            line = ['// Filter Finite Impulse Response - FIR\n\n']
+            line.append('module main\n(\n\tinput\t\t\t\t   clk,\n\tinput signed\t[10:0] x_adc,\n\toutput signed\t[10:0] y_dac\n);\n\n')
+            line.append('reg signed [10:0] r [' + str(ltetha-1) + ':0];\n')
+            line.append('always @ (posedge clk)\n')
+            line.append('begin\n')
+            # tmp = int(round(math.pow(2, 32) * tetha[-1]))
+            tmp = int(round(math.pow(2, 32) * tetha[0]))
+            # aux = ''
+            aux = ' *  34\'d' + str(tmp) if tmp > 0 else ' * -34\'d' + str(abs(tmp))
+            line.append('\tr[ 0] <= (x_adc ' + aux + ');\n')
+            # for cont in range(1, ltetha-1):
+            for cont in range(1, ltetha):
+                # tmp = int(round(math.pow(2, 32) * tetha[ltetha - cont -1]))
+                tmp = int(round(math.pow(2, 32) * tetha[cont]))
+                # aux = ''
+                aux = ' *  34\'d' + str(tmp) if tmp > 0 else ' * -34\'d' + str(abs(tmp))
+                line.append('\tr[' + util.sstr(cont) + '] <= (r[' + util.sstr(cont - 1) + '] '+aux+');\n')
+            line.append('end\n\n')
+            line.append('wire signed [10:0] tmp;\n')
+            # tmp = int(round(math.pow(2, 32) * tetha[-1]))
+            # tmp = int(round(math.pow(2, 32) * tetha[0]))
+            aux = ''
+            # aux = '(x_adc * 34\'d' + str(tmp) + ')' if tmp > 0 else '- (x_adc * 34\'d' + str(abs(tmp)) + ')'
+            line.append('assign tmp = (' + aux)
+            aux, aux1 = '', ''
+            for cont in range(1, ltetha):
+                # tmp = int(round(math.pow(2, 32) * tetha[ltetha - cont - 1]))
+                # tmp = int(round(math.pow(2, 32) * tetha[cont]))
+                aux += 'r[' + str(ltetha - cont) + '] + '
+                # aux += ' + (r[' + str(ltetha - cont - 1) + '] * 34\'d' + str(tmp) + ')' if tmp > 0 else ' - (r[' + str(
+                #     ltetha - cont - 1) + '] * 34\'d' + str(abs(tmp)) + ')'
+            #line.append(aux + ') >>> 22;\nendmodule\n\n')
+            # line.append(aux + ') >>> 30;\nassign y_dac = tmp[10] == 1 ? 0 : tmp;\n\nendmodule\n')
+            line.append(aux[:-3] + ') >>> 30;\nassign y_dac = tmp[10] == 1 ? 0 : tmp;\n\nendmodule\n')
+            file = open(arq, 'w')
+            for linha in line:
+                file.write(linha)
+            file.close()
         mlt = int(len(tetha) / 2)
         # FILTRO FIR
         signalF = np.convolve(tetha, signalN)
+        #util.printM(signalF[mlt - 1:mlt +19])
+        # exit()
         signalF = signalF[mlt - 1:-mlt]
         return np.where(signalF < 0, 0, signalF)
 
@@ -139,6 +199,24 @@ class Algorithms:
             paso = step + b
             signalMf[step:paso] = signalS[3:b + 3]
         return signalMf
+
+    def DantzigSelec(self, r, bunch, H, AA, uns, threshold=-1, COF=False):
+        bb = np.concatenate((H.T.dot(r.T)+uns.dot(.12), np.negative(H.T).dot(r.T)+uns.dot(.12)))
+        um = np.concatenate((uns, uns.dot(9)))
+        res = linprog(um, AA, bb, options={"disp": False})
+        saida = res.x[:bunch]
+        if COF:
+            index = np.asarray(np.where(saida > threshold))[0]
+            if np.size(index) <= 0:
+                index = bunch-1
+            elif np.size(index) != bunch:
+                index = np.append(index, bunch-1)
+            with np.errstate(divide='ignore'):
+                tmp = r.dot(H[:, index].dot(np.power(H[:, index].T.dot(H[:, index]), -1)))
+            saida[index] = np.nan_to_num(tmp)
+            return saida
+        else:
+            return saida
 
     # Matching-Pursuit
     def MP(self, threshold, signal, bunch, H, negatives=False):
@@ -439,11 +517,29 @@ class Algorithms:
             mu = mud
         if nu == math.inf:
             u = Utiliters()
-            nu = np.mean(np.sqrt(x*u.getPcdConst(A)))-1 if not(np.nan) else u.getPcdConst(A)
-        temp = (x + B) - (nu * lambd)
+            nu = u.getPcdConst(A)
+        temp = (x + B.dot(nu)) - lambd
         temp = np.where(temp < 0, 0, temp)
         d = temp - x
         x = x + (d.dot(mu))
+        if returnMu:
+            return x, mu
+        return x
+
+    # Separable Surrogate Functionals Line Search with constant
+    def SSFlsc(self, x, Hs, A, mud=math.inf, lambd=0.0, nu=math.inf, returnMu=False):
+        B = Hs - A.dot(x)
+        if mud == math.inf:
+            mu = B.T.dot(B) / B.T.dot(A).dot(B)
+        else:
+            mu = mud
+        if nu == math.inf:
+            u = Utiliters()
+            nu = u.getTasConst()
+        temp = ((x + B).dot(nu)) - (nu * lambd)
+        temp = np.where(temp < 0, 0, temp)
+        d = temp - x
+        x = x + d.dot(mu)
         if returnMu:
             return x, mu
         return x
@@ -462,24 +558,6 @@ class Algorithms:
         temp = np.where(temp < 0, 0, temp)
         d = temp - x
         x = x + (d.dot(mu * 2))
-        if returnMu:
-            return x, mu
-        return x
-
-    # Teixeira Andrade Shrinkage
-    def TAS(self, x, Hs, A, mud=math.inf, lambd=0.0, nu=math.inf, returnMu=False):
-        B = Hs - A.dot(x)
-        if mud == math.inf:
-            mu = B.T.dot(B) / B.T.dot(A).dot(B)
-        else:
-            mu = mud
-        if nu == math.inf:
-            u = Utiliters()
-            nu = u.getTasConst()
-        temp = ((x + B).dot(nu)) - (nu * lambd)
-        temp = np.where(temp < 0, 0, temp)
-        d = temp - x
-        x = x + d.dot(mu)
         if returnMu:
             return x, mu
         return x
