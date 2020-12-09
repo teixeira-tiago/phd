@@ -6,7 +6,6 @@ from matplotlib.patches import Rectangle
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
-from scipy.stats import kde
 from matplotlib import cm
 import pandas as panda
 import numpy as np
@@ -127,7 +126,12 @@ class Graficos:
                     ax.plot(minimun[col+':FA'], minimun[col+':DP'], 'o', markersize=5, markeredgecolor='k', markerfacecolor='k')
                     axin.plot(minimun[col + ':FA'], minimun[col + ':DP'], 'o', markersize=5, markeredgecolor='k',
                               markerfacecolor='k')
-                ax.plot(dados[col+':FA'], dados[col+':DP'], label=algo, color=colors[c])
+                label = algo
+                # if 'DS' in algo:
+                #     label = 'LP'
+                # if 'FDIP' in algo:
+                #     label = 'FIR'
+                ax.plot(dados[col+':FA'], dados[col+':DP'], label=label, color=colors[c])
                 axin.plot(dados[col + ':FA'], dados[col + ':DP'], color=colors[c])
                 guardaX.append(np.nanstd(dados[col+':FA']))
                 guardaY.append(np.nanstd(dados[col+':DP']))
@@ -170,8 +174,8 @@ class Graficos:
             if len(list_im) > 1:
                 self.saveImg(list_im, nome)
 
-    def graphRMS(self, algos, occupancies, show=True, join=False, nome='', file='./../graphics/data/roc_all.csv', mark=True,
-                 head=True, fator=12):
+    def graphRMS(self, algos, occupancies, show=True, join=False, nome='', file='./../graphics/data/roc_48b7e_all.csv',
+                 imprimirFull=False, mark=True, head=True, fator=12):
         minY, minX, maxY, maxX = 999, 0, 0, 999
         list_im = []
         data = panda.read_csv(file)
@@ -189,11 +193,15 @@ class Graficos:
                     tmp = int(data.loc[data[colY] == np.nanmin(data[colY])][colY].tolist()[0])
                     minY = tmp if tmp < minY else minY
 
-        xMAX = maxX
+        xMAX = maxX #= (round(maxX/2))
+        # maxY = round(maxY/2.5)
         maxX = np.sqrt(maxX * math.pow(fator, 2))
         minY = minY * fator
         maxY = maxY * fator
-        imprimir = np.zeros([len(occupancies), len(algos) * 2])
+        if imprimirFull:
+            imprimir = np.zeros([len(occupancies), len(algos) * 2])
+        else:
+            imprimir = np.zeros([len(occupancies), len(algos)])
         cColun = 0
         for algo in algos:
             print(algo)
@@ -212,8 +220,15 @@ class Graficos:
                 if head:
                     dados = dados.head(xMAX)
                 minimun = dados.loc[dados[col + ':RMS'] == np.nanmin(dados[col + ':RMS'])]
-                imprimir[cLine][cColun:cColun + 2] = [np.sqrt(minimun[col + ':threshold'] * math.pow(fator, 2)),
-                                                      minimun[col + ':RMS'] * fator]
+                if imprimirFull:
+                    imprimir[cLine][cColun:cColun + 2] = [np.sqrt(minimun[col + ':threshold'] * math.pow(fator, 2)),
+                                                          minimun[col + ':RMS'] * fator]
+                    # imprimir[cLine][cColun:cColun + 2] = [minimun[col + ':threshold'],
+                    #                                       minimun[col + ':RMS'] * fator]
+
+                else:
+                    imprimir[cLine][cColun:cColun + 1] = minimun[col + ':RMS'] * fator
+                    # imprimir[cLine][cColun:cColun + 1] = round(minimun[col + ':RMS'] * fator)
                 cLine += 1
                 if mark:
                     ax.plot(np.sqrt(minimun[col + ':threshold'] * math.pow(fator, 2)), minimun[col + ':RMS'] * fator, 'o',
@@ -221,7 +236,10 @@ class Graficos:
                 ax.plot(np.sqrt(dados[col + ':threshold'] * math.pow(fator, 2)), dados[col + ':RMS'] * fator,
                         label='Occupancy ' + str(occupancy) + '%', color=colors[c])
                 c += 1
-            cColun += 2
+            if imprimirFull:
+                cColun += 2
+            else:
+                cColun += 1
             if fator==1:
                 ax.set_xlabel(r'$\sqrt{(\epsilon_0)}$ (ADC counts)')
                 ax.set_ylabel('RMS Error distribution (ADC counts)')
@@ -564,8 +582,8 @@ class Graficos:
                             # legenda.append('Gradiente Descent')
                         if fir:
                             dados.append(np.repeat(df[['FIR:26:RMS']].values[0][0] * fatorY, len(dados[0])))
-                            legenda.append('FDIP value reference')
-                            # legenda.append('FIR value reference')
+                            # legenda.append('FDIP value reference')
+                            legenda.append('FIR value reference')
                         # name = nome+'2D_algos_COM_P_'+str(occupancy)+'_'+mi+'_'+l
                         name = nome + 'grupo_ssf_' + str(occupancy)
                         self.graph2d(panda.DataFrame(dados).transpose().values, titulo, legenda, loc='upper right', show=show, nome=name, fatorX=fatorX, fatorY=fatorY)
@@ -620,6 +638,8 @@ class Graficos:
                 legenda = []
                 for idx in range(len(iterations)):
                     dado = dg[[algo+':mu:'+str(occupancy)+':'+str(idx+1)]].values[:,0][:]
+                    print(dado.tolist())
+                    exit()
                     dados.append(dado.mean())
                     Z[:,idx] = np.asanyarray(dado.tolist())
                 self.graph3d(X, Y, Z, windows, iterations, titulo, show=show, nome=nome+'3D_mu_'+algo.lower()+'_'+str(occupancy))
@@ -749,6 +769,9 @@ class Graficos:
         fig.clear()
         plt.close(fig)
 
+    def calcError(self):
+        pass
+
 if __name__ == '__main__':
     occupancies = [1, 5, 10, 20, 30, 40, 50, 60, 90]
     algos = ['GD', 'SSF', 'PCD', 'TAS', 'GDi', 'SSFi', 'PCDi', 'TASi']
@@ -764,7 +787,7 @@ if __name__ == '__main__':
     # g.graphROC(['Sparse', 'FIR', 'LS-OMP', 'SSF'], [1, 30], mark=False)
     # g.algosGrouped(['SSF', 'TAS'], [30], [0.25], np.arange(1), split=False)
     # g.graphLambdaFull(['SSF'], occupancies, lambdas, np.arange(1, 331, 1), file='./../results/tese/rms_lambda_all.csv', dimension='2D')
-    # g.graphLambdaFull(['SSF'], [30, 50, 60], lambdas, iterations, show=True, nome=nome)
+    # g.graphLambdaFull(['SSF'], [30], lambdas, iterations, show=True, nome=nome)
     # g.graphRMS(['LS-OMP', 'DS', 'FIR'], occupancies)
     # g.graphROC(old, [1, 5, 10], show=True, nome=nome + 'roc_old_texto')
     # g.graphMuFull(['SSF', 'SSFi'], [1], mus, windows, iterations, True)
@@ -776,6 +799,7 @@ if __name__ == '__main__':
     semP = ['GD', 'SSF', 'PCD', 'TAS']
     comP = ['GDi', 'SSFi', 'PCDi', 'TASi']
     best = ['DS', 'LS-OMP', 'SSFlsc', 'SSFlsci']
+    best2 = ['FDIP', 'OMP', 'SSF', 'SSFi']
     texto = [1, 30, 90]
     ap1 = [1, 5, 10]
     ap2 = [20, 30, 40]
@@ -783,10 +807,16 @@ if __name__ == '__main__':
 
     # ssfs = ['SSF', 'SSFls', 'SSFlsc', 'SSFi', 'SSFlsi', 'SSFlsci']
     # g.graphLambdaFull(['SSF'], occupancies, lambdas, iterations, show=False, nome=nome)
-    g.graphMuFull(['SSF'], [30], mus, windows, iterations, show=False, nome=nome, fatorX=1, fatorY=1)
+    # g.graphMuFull(['SSF'], [30], mus, windows, iterations, show=True, nome=nome, fatorX=1, fatorY=1)
     # g.algosGrouped(['SSFi', 'SSFlsc'], occupancies, [0.25], np.arange(1), show=False, nome=nome, file='./data/compare_', split=False, fir=True)
     # g.algosGrouped(['SSF'], [30], [0.25], np.arange(1), show=False, nome=nome, split=False, fir=True, fatorX=1, fatorY=1)
     # g.graphConst(occupancies)
+    # g.graphROC(best, occupancies, show=False, nome=nome + 'roc_b1')
+    # g.graphROC(best2, occupancies, show=False, nome=nome + 'roc_b2')
+
+    g.graphRMS(['FDIP'], [1], show=True, nome=nome + 'rms')
+
+    # g.graphRMS(['FDIP', 'DS', 'OMP', 'LS-OMP', 'SSF', 'SSFlsc', 'SSFi', 'SSFlsci'], occupancies, show=True, nome=nome+'rms')
     # g.graphROC(['DS', 'SSF', 'SSFi', 'SSFlsc'], occupancies, show=False, nome=nome + 'roc')
     # g.graphRMS(['DS', 'SSF', 'SSFi', 'SSFlsc'], occupancies, show=False, nome=nome + 'rms')
     # g.graphCompareRMS(['DS', 'SSF', 'SSFi', 'SSFlsc'], [30], show=False, nome=nome + 'compare')
@@ -812,6 +842,11 @@ if __name__ == '__main__':
     # g.graphROC(comP, ap3, show=False, nome=nome + 'roc_comP_ap3')
     # g.graphROC(best, texto, show=False, nome=nome + 'roc_best_texto')
     # g.graphFDIP([30], 2, 53, show=False, nome=nome + 'fir_order')
+    # g.graphRMS(['MF', 'MP', 'OMP', 'LS-OMP'], occupancies, show=True, imprimirFull=True)
 
-
+# ---- REVISTA SEIXAS -----#
+#     g.graphRMS(['OMP', 'LS-OMP'], occupancies, show=False, nome=nome + 'rms_threshold')
+#     g.graphROC(['DS', 'FDIP', 'LS-OMP', 'SSF'], [1, 30], show=False, nome=nome + 'roc', mark=False)
+#     g.algosGrouped(['SSF', 'SSFi'], [30], [0.25], np.arange(1), show=False, nome=nome, split=False, fir=True)
+#     g.graphRMS(['DS', 'MF', 'FDIP', 'OMP', 'LS-OMP', 'SSF'], occupancies, show=False, nome=nome + 'rms_threshold')
 # https://stackoverflow.com/questions/13932150/matplotlib-wrong-overlapping-when-plotting-two-3d-surfaces-on-the-same-axes
