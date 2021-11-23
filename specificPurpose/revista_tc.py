@@ -22,8 +22,9 @@ except ImportError:
     from PIL import Image
 import math
 
-matplotlib.use('TkAgg')
-
+#matplotlib.use('TkAgg')
+cor = plt.get_cmap('Greys')
+matplotlib.rcParams.update({'font.size': 12, 'font.family':'sans-serif'})
 
 class Graficos:
 
@@ -293,7 +294,7 @@ class Graficos:
             ax.set_zlabel(const, rotation=90)
             ax.set_xticks(np.arange(w0[0], w0[-1] + 2, round(w0[-1] / 10)))
             ax.set_yticks(np.arange(w1[0]-1, w1[-1]+1, int(w1[-1] / 10)))
-        surf = ax.plot_surface(X, Y, Z.T, cmap=cm.jet, linewidth=0, antialiased=True)
+        surf = ax.plot_surface(X, Y, Z.T, cmap=cor, linewidth=0, antialiased=True)
         ax.view_init(elev=45, azim=60)
         ax.tick_params(axis='both', which='major', labelsize=8)
         ax.tick_params(axis='both', which='minor', labelsize=0)
@@ -608,7 +609,7 @@ class Graficos:
             dados = []
             ordens = []
             for order in range(sO, eO, 2):
-                signalF = algo.FIR(order, signalNf, signalTf, signalN)
+                signalF = algo.FDIP(order, signalNf, signalTf, signalN)
                 dados.append(gerador.rms(signalF - signalT))
                 ordens.append(order)
             ax.plot(ordens, dados, label='Occupancy ' + str(occupancy), color=colors[occupancies.index(occupancy)])
@@ -619,8 +620,8 @@ class Graficos:
             ax.plot(ordens[dados.index(minimum)], minimum, linestyle='none', marker='.', color='black')
         #ax.set_title('RMS error by constant value')
         # ax.set_xlabel('Constant value')
-        ax.set_xlabel('Order')
-        ax.set_ylabel('RMS Error distribution (ADC counts)')
+        ax.set_xlabel('Number of iterations')#'Order')
+        ax.set_ylabel(r'$\mu$ values')#'RMS Error distribution (ADC counts)')
         ax.tick_params(axis='both', which='major', labelsize=8)
         ax.tick_params(axis='both', which='minor', labelsize=0)
         ax.tick_params(which='both', direction='out')
@@ -652,7 +653,8 @@ if __name__ == '__main__':
     algos = ['GD', 'SSF', 'PCD', 'TAS', 'GDi', 'SSFi', 'PCDi', 'TASi']
     windows = np.arange(1820)
     lambdas = np.arange(-2, 2.1, 0.1)
-    iterations = np.arange(1, 166, 1)
+    #iterations = np.arange(1, 166, 1)
+    iterations = np.arange(1, 331, 1)
     mus = [1, 0.5, 0.25, 0.125]
 
     nome = './../graphics/results/'
@@ -680,10 +682,10 @@ if __name__ == '__main__':
     ap3 = [50, 60, 90]
 
     # ssfs = ['SSF', 'SSFls', 'SSFlsc', 'SSFi', 'SSFlsi', 'SSFlsci']
-    g.graphLambdaFull(['SSF'], occupancies, lambdas, iterations, show=False, nome=nome, dimension='2D')
+    #g.graphLambdaFull(['SSF'], occupancies, lambdas, iterations, show=True, nome=nome, dimension='2D')
     # g.graphMuFull(['SSF'], occupancies, mus, windows, iterations, show=False, nome=nome)
     # g.graphMuFull(['SSF'], [30], mus, windows, np.arange(1, 331, 1), show=False, nome=nome)
-    g.algosGrouped(['SSFi', 'SSFlsc'], occupancies, [0.25], np.arange(1), show=False, nome=nome, split=False, fir=True)
+    #g.algosGrouped(['SSFi', 'SSFlsc'], occupancies, [0.25], np.arange(1), show=True, nome=nome, split=False, fir=True)
     # g.algosGrouped(['SSF'], [30], [0.25], np.arange(1), show=False, nome=nome, split=False, fir=True)
     # g.graphConst(occupancies, show=False, nome=nome+'nu_ssf')
     # g.graphRMS(shrin, occupancies, show=False, nome=nome + 'rms_shr')

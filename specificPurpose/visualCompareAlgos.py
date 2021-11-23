@@ -16,6 +16,7 @@ import matplotlib
 import numpy as np
 import math
 
+matplotlib.rcParams.update({'font.size': 14, 'font.family':'sans-serif'})
 
 def graphTese(signalT, signalC, signalA, labelC, label, double=False):
     minX = 0
@@ -26,15 +27,16 @@ def graphTese(signalT, signalC, signalA, labelC, label, double=False):
     maxX = 240
     if double:
         fig = plt.figure(1, figsize=[12, 4.5])
+        # fig.patch.set_alpha(0)
         gs1 = gridspec.GridSpec(3, 3, width_ratios=[4, 1, 1], height_ratios=[4, 1, 1])
         gs1.update(top=1, bottom=0.1, left=0.05, right=0.5, wspace=0.01, hspace=0.05)
 
-        ax0 = fig.add_subplot(gs1[0, 2])
+        ax0 = fig.add_subplot(gs1[0, 2], facecolor=(0, 0, 0, 0))
         img = mpimg.imread('seta.png')
         ax0.imshow(img)
         ax0.axis('off')
 
-        ax1 = fig.add_subplot(gs1[:-1, :-1])
+        ax1 = fig.add_subplot(gs1[:-1, :-1], facecolor=(0, 0, 0, 0))
         ax1.plot(signalT, 'k', label='Target')
         caption = 'Obtained signal ' if 'Noise' in labelC else 'Signal recovered with ' + labelC
         ax1.plot(signalC, 'r--', label=caption)
@@ -52,7 +54,7 @@ def graphTese(signalT, signalC, signalA, labelC, label, double=False):
         ax1.grid(which='major', alpha=0.7)
         ax1.set_ylabel('ADC counts')
 
-        ax2 = fig.add_subplot(gs1[-1, :-1])
+        ax2 = fig.add_subplot(gs1[-1, :-1], facecolor=(0, 0, 0, 0))
         ax2.plot(signalC - signalT)
         ax2.set_xlabel('Samples')
         ax2.set_xlim(minX - (maxX / 100), maxX + (maxX / 100))
@@ -66,7 +68,7 @@ def graphTese(signalT, signalC, signalA, labelC, label, double=False):
         ax2.grid(which='minor', alpha=0.3)
         ax2.set_ylabel('Noise')
 
-        ax3 = fig.add_subplot(gs1[-1, -1])
+        ax3 = fig.add_subplot(gs1[-1, -1], facecolor=(0, 0, 0, 0))
         ax3.hist(signalC - signalT, orientation=u'horizontal')
         # ax3.set_xlim(-1, 201)
         ax3.set_ylim(minY2 - (maxY2 / 100), maxY2 + (maxY2 / 100))
@@ -76,7 +78,7 @@ def graphTese(signalT, signalC, signalA, labelC, label, double=False):
 
         gs2 = gridspec.GridSpec(3, 3, width_ratios=[4, 1, 1], height_ratios=[4, 1, 1])
         gs2.update(top=1, bottom=0.1, left=0.55, right=0.99, wspace=0.01, hspace=0.05)
-        ax4 = fig.add_subplot(gs2[:-1, :-1])
+        ax4 = fig.add_subplot(gs2[:-1, :-1], facecolor=(0, 0, 0, 0))
         ax4.plot(signalT, 'k', label='Alvo')
         ax4.plot(signalA, 'r--', label='Sinal reconstruído com ' + label)
         ax4.legend(loc="upper left", ncol=1, shadow=True, fancybox=True)
@@ -93,7 +95,7 @@ def graphTese(signalT, signalC, signalA, labelC, label, double=False):
         ax4.grid(which='major', alpha=0.7)
         ax4.set_ylabel('Contagens de ADC')
 
-        ax5 = fig.add_subplot(gs2[-1:, :-1])
+        ax5 = fig.add_subplot(gs2[-1:, :-1], facecolor=(0, 0, 0, 0))
         ax5.set_xlabel('Amostras')
         ax5.plot(signalA - signalT)
         ax5.set_xlim(minX - (maxX / 100), maxX + (maxX / 100))
@@ -107,7 +109,7 @@ def graphTese(signalT, signalC, signalA, labelC, label, double=False):
         ax5.grid(which='minor', alpha=0.3)
         ax5.set_ylabel('Ruído')
 
-        ax6 = fig.add_subplot(gs2[-1, -1])
+        ax6 = fig.add_subplot(gs2[-1, -1], facecolor=(0, 0, 0, 0))
         ax6.hist(signalA - signalT, orientation=u'horizontal')
         # ax6.set_xlim(-1, 201)
         ax6.set_ylim(minY2 - (maxY2 / 100), maxY2 + (maxY2 / 100))
@@ -116,10 +118,11 @@ def graphTese(signalT, signalC, signalA, labelC, label, double=False):
         ax6.set_xlabel('Histograma')
     else:
         fig = plt.figure(1, figsize=[6.5, 4.5])
+        # fig.patch.set_alpha(0)
         gs1 = gridspec.GridSpec(3, 3, width_ratios=[4, 1, 1], height_ratios=[4, 1, 1])
         gs1.update(left=0.09, right=0.99, top=0.99, bottom=0.1, wspace=0, hspace=0.05)
 
-        ax1 = fig.add_subplot(gs1[:-1, :-1])
+        ax1 = fig.add_subplot(gs1[:-1, :-1], facecolor=(0, 0, 0, 0))
         ax1.plot(signalT, 'k', label='Target')
         caption = 'Obtained signal ' if 'Noise' in labelC else 'Signal recovered with ' + labelC
         ax1.plot(signalC, 'r--', label=caption)
@@ -137,7 +140,7 @@ def graphTese(signalT, signalC, signalA, labelC, label, double=False):
         ax1.grid(which='major', alpha=0.7)
         ax1.set_ylabel('ADC counts')
 
-        ax2 = fig.add_subplot(gs1[-1, :-1])
+        ax2 = fig.add_subplot(gs1[-1, :-1], facecolor=(0, 0, 0, 0))
         ax2.plot(signalC - signalT)
         ax2.set_xlabel('Samples')
         ax2.set_xlim(minX - (maxX / 100), maxX + (maxX / 100))
@@ -151,7 +154,7 @@ def graphTese(signalT, signalC, signalA, labelC, label, double=False):
         ax2.grid(which='minor', alpha=0.3)
         ax2.set_ylabel('Noise')
 
-        ax3 = fig.add_subplot(gs1[-1, -1])
+        ax3 = fig.add_subplot(gs1[-1, -1], facecolor=(0, 0, 0, 0))
         ax3.hist(signalC - signalT, orientation=u'horizontal')
         # ax3.set_xlim(-1, 201)
         ax3.set_ylim(minY2 - (maxY2 / 100), maxY2 + (maxY2 / 100))
@@ -159,7 +162,7 @@ def graphTese(signalT, signalC, signalA, labelC, label, double=False):
         ax3.set_yticklabels([])
         ax3.set_xlabel('Histogram')
 
-    # plt.show()
+    plt.show()
     plt.savefig('../graphics/results/'+label + '.png')
     fig.clear()
     plt.close(fig)
@@ -195,7 +198,7 @@ if __name__ == '__main__':
     matrix = matrizes.matrix()
     h = matrix[0:7, 5]
     constPCD = util.getPcdConst(A)
-    constTAS = util.getTasConst(30)
+    constTAS = util.getNuConst(30)
     iterations = 108
     threshold = 0
 
@@ -250,7 +253,7 @@ if __name__ == '__main__':
     # graphTese(signalT, signalN, signalMf, 'Noise', 'Matched Filter')
     graphTese(signalT, signalMf, signalMf, 'Matched Filter', 'v_matched_filter')
 
-    signalF = algo.FIR(26, signalNf, signalTf, signalN)
+    signalF = algo.FDIP(26, signalNf, signalTf, signalN)
     print('RMS of Fir Filter =', gerador.rms(signalF - signalT))
     # graphTese(signalT, signalMf, signalF, 'Matched Filter', 'FIR order 26')
     graphTese(signalT, signalF, signalF, 'Filter FDIP order 26', 'v_fdip_order_26')
@@ -304,8 +307,8 @@ if __name__ == '__main__':
         x = xAll
         y = yAll
         for j in range(iterations):
-            x = algo.GD(x, Hs, A, 0.25)
-            y = algo.GD(y, Hs, A, 0.25)
+            x = algo.GD(x, Hs, A)
+            y = algo.GD(y, Hs, A)
         x = np.where(x < 0, 0, x)
         y = np.where(y < 0, 0, y)
         signalGD[step:paso] = x
@@ -314,8 +317,8 @@ if __name__ == '__main__':
         x = xAll
         y = yAll
         for j in range(iterations):
-            x = algo.SSF(x, Hs, A, 0.25, 0.0)
-            y = algo.SSF(y, Hs, A, 0.25, 0.0)
+            x = algo.SSF(x, Hs, A)
+            y = algo.SSF(y, Hs, A)
         x = np.where(x < 0, 0, x)
         y = np.where(y < 0, 0, y)
         signalSSF[step:paso] = x
@@ -324,8 +327,8 @@ if __name__ == '__main__':
         x = xAll
         y = yAll
         for j in range(iterations):
-            x = algo.SSFls(x, Hs, A, 0.5, 0.0)
-            y = algo.SSFls(y, Hs, A, 0.25, 0.0)
+            x = algo.SSFls(x, Hs, A)
+            y = algo.SSFls(y, Hs, A)
         x = np.where(x < 0, 0, x)
         y = np.where(y < 0, 0, y)
         signalSSFls[step:paso] = x
@@ -334,8 +337,10 @@ if __name__ == '__main__':
         x = xAll
         y = yAll
         for j in range(iterations):
-            x = algo.PCD(x, Hs, A, 0.25, 0.0, constPCD)
-            y = algo.PCD(y, Hs, A, 0.25, 0.0, constPCD)
+            x = algo.PCD(x, Hs, A)
+            y = algo.PCD(y, Hs, A)
+            # x = algo.PCD(x, Hs, A, 0.5, 0.0, constPCD)
+            # y = algo.PCD(y, Hs, A, 0.5, 0.0, constPCD)
         x = np.where(x < 0, 0, x)
         y = np.where(y < 0, 0, y)
         signalPCD[step:paso] = x
@@ -344,8 +349,10 @@ if __name__ == '__main__':
         x = xAll
         y = yAll
         for j in range(iterations):
-            x = algo.SSFlsc(x, Hs, A, 0.25, 0.0, constTAS)
-            y = algo.SSFlsc(y, Hs, A, 0.25, 0.0, constTAS)
+            x = algo.SSFlsc(x, Hs, A)
+            y = algo.SSFlsc(y, Hs, A)
+            # x = algo.SSFlsc(x, Hs, A, 0.25, 0.0, constTAS)
+            # y = algo.SSFlsc(y, Hs, A, 0.25, 0.0, constTAS)
         x = np.where(x < 0, 0, x)
         y = np.where(y < 0, 0, y)
         signalTAS[step:paso] = x
@@ -380,15 +387,15 @@ if __name__ == '__main__':
     # graphTese(signalT, signalL, signalSSF, 'LS-OMP', 'SSF')
     graphTese(signalT, signalSSF, signalSSF, 'SSF', 'v_ssf')
     graphTese(signalT, signalSSFls, signalSSF, 'SSF-LS', 'v_ssfls')
-    graphTese(signalT, signalSSFi, signalSSFi, 'SSF Initialized', 'v_ssfi')
-    graphTese(signalT, signalSSFlsi, signalSSFi, 'SSF-LS Initialized', 'v_ssflsi')
+    graphTese(signalT, signalSSFi, signalSSFi, 'SSFi', 'v_ssfi')
+    graphTese(signalT, signalSSFlsi, signalSSFi, 'SSF-LSi', 'v_ssflsi')
 
     print('RMS of PCD =', gerador.rms(signalPCD - signalT))
     # graphTese(signalT, signalSSF, signalPCD, 'SSF', 'PCD')
     graphTese(signalT, signalPCD, signalPCD, 'PCD', 'v_pcd')
-    graphTese(signalT, signalPCDi, signalPCDi, 'PCD Initialized', 'v_pcdi')
+    graphTese(signalT, signalPCDi, signalPCDi, 'PCDi', 'v_pcdi')
 
     print('RMS of TAS =', gerador.rms(signalTAS - signalT))
     # graphTese(signalT, signalPCD, signalTAS, 'PCD', 'TAS')
     graphTese(signalT, signalTAS, signalTAS, 'SSF-LS + '+r'$\nu$', 'v_ssflsc')
-    graphTese(signalT, signalTASi, signalTASi, 'SSF-LS Initialized + '+r'$\nu$', 'v_ssflsci')
+    graphTese(signalT, signalTASi, signalTASi, 'SSF-LSi + '+r'$\nu$', 'v_ssflsci')
