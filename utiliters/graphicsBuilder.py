@@ -22,7 +22,9 @@ except (ModuleNotFoundError, ImportError):
     from utiliters.mathLaboratory import Signal
 
 # matplotlib.use('TkAgg')
+matplotlib.rcParams.update({'font.size': 12, 'font.family':'sans-serif'})
 cor = plt.get_cmap('jet')
+#cor = plt.get_cmap('copper')
 
 class Graficos:
 
@@ -459,7 +461,7 @@ class Graficos:
                 self.saveImg(list_im, nome.lower())
 
 
-    def graphCompareAlgos(self, graficos, xLabel, yLabel, show=True, nome='', fatorY=12, fdip=0):
+    def graphCompareAlgos(self, graficos, xLabel, yLabel, show=True, nome='', fatorY=12, fdip=0, mark=True):
         fig = plt.figure(1, figsize=[6, 4.5], dpi=160, facecolor='w', edgecolor='k')
         ax = fig.add_subplot(1, 1, 1)
         ll = len(graficos)
@@ -474,12 +476,14 @@ class Graficos:
             maxY = maxY if maxY > np.nanmax(dado) else np.nanmax(dado)
             ax.plot(dado, label=legenda, color=colors[c])
             c += 1
-        for i in range(int(len(dado)/55)):
-            ax.plot((i * 55)+55, fdip * fatorY, 'o', markersize=5, markeredgecolor='k', markerfacecolor='k')
+        if mark:
+            for i in range(int(len(dado)/55)):
+                ax.plot((i * 55)+55, fdip * fatorY, 'o', markersize=5, markeredgecolor='k', markerfacecolor='k')
         ax.set_xlabel(xLabel)
         ax.set_ylabel(yLabel)
         # ax.set_title('Root Mean Square - RMS\nOccupancy ' + str(occupancy), horizontalalignment='center')
-        ax.legend(loc='upper left', ncol=1, shadow=True, fancybox=True)
+
+        ax.legend(loc='upper right', ncol=1, shadow=True, fancybox=True)
         ax.set_xlim(minX - (maxX / 100), maxX + (maxX / 100))
         ax.set_ylim(minY - (maxY / 100), maxY + (maxY / 100))
         ax.set_xticks(np.arange(minX, maxX + (maxX / 100), maxX / 10))
@@ -489,6 +493,7 @@ class Graficos:
         ax.tick_params(axis='both', which='major', labelsize=8)
         ax.tick_params(axis='both', which='minor', labelsize=0)
         ax.tick_params(which='both', direction='out')
+        ax.xaxis.set_major_locator(MaxNLocator(nbins=13.5, integer=False))
         ax.grid(which='minor', alpha=0.3)
         ax.grid(which='major', alpha=0.7)
         plt.subplots_adjust(left=0.11, right=0.98, top=1, bottom=0.1)
@@ -787,13 +792,18 @@ class Graficos:
         fig.clear()
         plt.close(fig)
 
-    def graph2d(self, dados, titulo, legenda, eixoX=None, xLabel='Number of iterations', yLabel='RMS Error',
+    def graph2d(self, dados, titulo, legenda, eixoX=None, xLabel='Number of iterations', yLabel='RMS Error distribution',
                 lam=False, loc='upper left', show=True, nome='', linestyle='-', markL=None, fatorX=1, fatorY=12,
                 mark=True, subLegendX=None, xnbins=13.5, error=False):
         fig = plt.figure(1, figsize=[6, 4.5], dpi=160, edgecolor='k')
         # fig.patch.set_alpha(0)
         ll = len(legenda)
-        colors = [cor(float(i) / (ll-1)) for i in range(ll)]
+        if 'dynamic' in legenda[0]:
+            colors = ['k'] * ll #['k', 'r', 'k', 'k']
+            linestyle = [':', '-', '-.', '--']
+        else:
+            colors = [cor(float(i) / (ll-1)) for i in range(ll)]
+            linestyle = [linestyle] * ll
         ay = fig.add_subplot(1, 1, 1, facecolor=(0, 0, 0, 0))
         maxY = -1
         minY = 999
@@ -817,13 +827,13 @@ class Graficos:
                     errory = lambdaError['SSF:'+str(tmp[0])+':std'] * fatorY
                     idx = np.searchsorted(eixoX, lambdas)
                     ay.errorbar(eixoX[idx], data[idx], yerr=errory, ecolor=colors[l], color='None', label='', capsize=3)
-                ay.plot(eixoX, data, color=colors[l], linestyle=linestyle, marker=markL, label=legenda[l])
+                ay.plot(eixoX, data, color=colors[l], linestyle=linestyle[l], marker=markL, label=legenda[l])
 
                 if mark:
                     minimum = data.min()
                     idx = data.tolist().index(minimum)
                     p = plt.plot(eixoX[idx], minimum, 'o')
-                    plt.setp(p, markersize=5, markeredgecolor='k', markerfacecolor='k')
+                    plt.setp(p, markersize=5, markeredgecolor='k', markerfacecolor='k', labelsize=20)
         else:
             maxX = len(dados[:, 0][:])
             if eixoX is None:
@@ -852,7 +862,7 @@ class Graficos:
             ay.set_xlim(0, maxX + (maxX / 100))
         else:
             ay.set_xlim(minX - (maxX / 100), maxX + (maxX / 100))
-        if yLabel=='RMS Error':
+        if 'RMS Error' in yLabel:
             if fatorY == 1:
                 yLabel += ' (ADC Counts)'
             elif fatorY == 12:
@@ -926,8 +936,12 @@ class Graficos:
                         self.graph2d(panda.DataFrame(dados).transpose().values, titulo, legenda, loc='upper right', show=show, nome=name, fatorX=fatorX, fatorY=fatorY)
 
     def graphMuFull(self, algos, occupancies, mus, windows, iterations, file3d=None, file2d=None, dimension='ALL', show=True, join=False, nome='', fatorX=1, fatorY=12, mark=False):
-        if (file2d is None) and (file3d is None):
+        if (file2d is None) and (file3d is None) and (dimension.upper() == 'ALL'):
             raise Exception('Please set a valid file')
+        elif (file2d is None) and (dimension.upper() == '2D'):
+            raise Exception('Please set a valid file2D')
+        elif (file3d is None) and (dimension.upper() == '3D'):
+            raise Exception('Please set a valid file3D')
         X, Y = np.meshgrid(windows, iterations)
         Z = np.zeros((windows.size, iterations.size))
         muMean = panda.DataFrame([])

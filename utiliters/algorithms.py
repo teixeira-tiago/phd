@@ -90,16 +90,12 @@ class Algorithms:
     def MatchedF(self, threshold, totalSamples, signal, h):
         sample = 7
         # window = sample +6
-        Y = np.zeros([totalSamples, sample])
+        R = np.zeros([totalSamples, sample])
         for i in range(totalSamples):
-            # step = (it * window)
-            # paso = step + window
-            # tmp = signal[step:paso]
-            # Y[it, :] = tmp[3:3+sample]
             step = (i * sample)
             paso = step + sample
-            Y[i, :] = signal[step:paso]
-        C = np.cov(Y, rowvar=False)
+            R[i, :] = signal[step:paso]
+        C = np.cov(R, rowvar=False)
         try:
             tmp = np.linalg.matrix_power(C, -1)
         except:
@@ -119,12 +115,12 @@ class Algorithms:
     def MatchedF_roc(self, totalSamples, signal, h, signalT, nnz=0, nz=0):
         sample = 7
         gerador = Signal()
-        Y = np.zeros([totalSamples, sample])
+        R = np.zeros([totalSamples, sample])
         for i in range(totalSamples):
             step = (i * sample)
             paso = step + sample
-            Y[i, :] = signal[step:paso]
-        C = np.cov(Y, rowvar=False)
+            R[i, :] = signal[step:paso]
+        C = np.cov(R, rowvar=False)
         try:
             tmp = np.linalg.matrix_power(C, -1)
         except:
